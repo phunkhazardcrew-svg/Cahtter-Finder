@@ -71,3 +71,40 @@ console.log("OK",ok,"FAIL",fail);
  let acc=null;for(const h of C.detectTaps(x,sr)){const P=C.tapSpectrum(x,sr,h,32768);if(!acc)acc=P;else for(let k=0;k<P.length;k++)acc[k]+=P[k];}
  const tr=C.analyzeTap(acc,sr,32768);t(Math.abs(tr.fn-9000)<0.003*9000,"tap 9 kHz fn "+tr.fn);t(Math.abs(tr.zeta-0.01)<0.004,"tap 9 kHz zeta "+tr.zeta);
  console.log("review fixes OK",ok3,"FAIL",fail3);}
+// 10 tool assembly model and stability estimate (plausibility against typical published FRF ranges)
+{let ok4=0,fail4=0;const t=(c,m)=>{if(c)ok4++;else{fail4++;console.log("FAIL",m);}};
+ const A=o=>C.assembly(Object.assign({spindle:"HSK-A100",holder:"shrink"},o));
+ for(const D of [12,16,20]){const a=A({D,L:3*D});
+  console.log("asm D"+D+" 3xD k",a.kTip.toFixed(1),"N/um fTool",a.fTool.toFixed(0),"fBase",a.fBase.toFixed(0));
+  t(a.kTip>5&&a.kTip<30,"k D"+D+" 3xD in 5-30 N/um: "+a.kTip);
+  t(a.fTool>1500&&a.fTool<6000,"tool mode D"+D+" in 1.5-6 kHz: "+a.fTool);
+  t(a.fBase>250&&a.fBase<1200,"spindle/holder mode D"+D+": "+a.fBase);
+  const s=a.share;t(Math.abs(s.spindle+s.holder+s.clamp+s.tool-1)<1e-9,"shares sum to 1");}
+ // longer stick-out: softer, lower tool mode, tool share grows; ratio smaller than the pure 1/L^3 of the tool alone
+ {const a=A({D:16,L:48,Lg:128}),b=A({D:16,L:96,Lg:176});
+  t(b.kTip<a.kTip&&b.fTool<a.fTool&&b.share.tool>a.share.tool,"longer stick-out softer");
+  t(b.kTip/a.kTip>Math.pow(48/96,3),"assembly ratio above tool-alone 1/L^3");}
+ // units: entering the gauge length explicitly must equal the default guess
+ {const g=A({D:16,L:48}),e=A({D:16,L:48,Lg:g.Lg});t(Math.abs(g.kTip-e.kTip)<1e-9&&g.guessedLg&&!e.guessedLg,"explicit Lg = guessed Lg");}
+ // bigger interface stiffer; shrink fit not softer than ER collet at 6xD; damped holder has more damping
+ t(A({D:16,L:64,spindle:"HSK-A63"}).kTip<A({D:16,L:64}).kTip,"HSK-A63 softer than A100");
+ t(A({D:16,L:96,holder:"er"}).kTip<A({D:16,L:96}).kTip,"ER softer than shrink at 6xD");
+ t(A({D:16,L:48,holder:"damped"}).zeta>A({D:16,L:48}).zeta,"damped zeta");
+ // face mill on a short arbor: stiff, spindle/holder dominated; default arbor length is short
+ {const f=A({D:63,L:45,holder:"shell"});console.log("asm shell D63 k",f.kTip.toFixed(1),"fBase",f.fBase.toFixed(0),"Lg",f.Lg);
+  t(f.kTip>25&&f.kTip<150&&f.dominant==="base"&&f.Lg<130,"face mill on arbor");}
+ // invalid input
+ t(A({D:0,L:48})===null&&A({D:16,L:NaN})===null,"null on missing D/L");
+ // stableDepth: closed form 2 k zeta (1+zeta)/(Ks mu ze), scales with k and zeta, falls with ae
+ {const sd=C.stableDepth(10,0.03,2500,0.6,4,0.5);t(Math.abs(sd.ze-1)<1e-9&&Math.abs(sd.phiDeg-90)<1e-9,"ze at ae=D/2");
+  t(Math.abs(sd.aLim-2*10000*0.03*1.03/(2500*0.6*1))<1e-9,"aLim formula (mm)");
+  t(Math.abs(C.stableDepth(20,0.03,2500,0.6,4,0.5).aLim/sd.aLim-2)<1e-9,"aLim ∝ k");
+  t(C.stableDepth(10,0.03,2500,0.6,4,0.1).aLim>sd.aLim,"smaller ae deeper");
+  t(C.stableDepth(10,0.03,2500,0.6,4,1).ze===2,"slot: half the teeth in cut");
+  t(isFinite(C.stableDepth(10,0.03,2500,0.6,4,0).aLim),"ae 0 finite");}
+ // chip thinning, vc status, sourceOf
+ t(Math.abs(C.chipThickness(0.1,0.1)-0.06)<1e-9&&C.chipThickness(0.1,0.7)===0.1,"chip thickness");
+ t(C.vcStatus("h13_40",250).status==="high"&&C.vcStatus("h13_40",120).status==="ok"&&C.vcStatus("h13_40",50).status==="low","vc status");
+ {const a=A({D:16,L:48});t(C.sourceOf(a.fTool*1.05,a)==="tool"&&C.sourceOf(a.fBase,a)==="base"&&C.sourceOf(60,a)==="below"&&C.sourceOf(a.fTool*3,a)==="above","sourceOf");
+  t(C.sourceOf(Math.sqrt(a.fTool*a.fBase),a)==="between","sourceOf between");}
+ console.log("assembly OK",ok4,"FAIL",fail4);}

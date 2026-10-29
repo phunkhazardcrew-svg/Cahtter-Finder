@@ -72,6 +72,12 @@ section.view{display:grid;gap:14px}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--amber);outline:none}
 .field .hint{font-size:.74rem;color:var(--faint)}
 .field.big input{font-size:1.4rem;color:var(--amber)}
+.sub{font-family:var(--f-display);font-size:1rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);border-top:1px solid var(--line);padding-top:10px}
+.flexbar{display:flex;height:16px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.flexbar i{display:block;height:100%}
+.flexleg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--dim)}
+.flexleg span{display:inline-flex;align-items:center;gap:6px}
+.flexleg b{display:inline-block;width:10px;height:10px;border-radius:2px}
 
 .btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .btn{font:600 .95rem var(--f-body);color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
@@ -138,6 +144,7 @@ tr.rec td{color:var(--amber)}
 tr.cur td{color:var(--dim)}
 td .tag{font-family:var(--f-body);font-size:.72rem;color:var(--amber-ink);background:var(--amber);padding:1px 6px;border-radius:3px;margin-left:6px}
 td .tag.alt{background:var(--panel);color:var(--dim);border:1px solid var(--line)}
+td .tag.warn{background:transparent;color:var(--red);border:1px solid rgba(255,90,74,.5)}
 
 .steps{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:s}
 .steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start}
@@ -162,6 +169,7 @@ td .tag.alt{background:var(--panel);color:var(--dim);border:1px solid var(--line
 .empty{color:var(--faint);font-size:.92rem;padding:10px 0}
 .confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.88rem;color:#ffc2bb}
 
+.mtable select{min-height:44px;font:500 .9rem var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px}
 .mtable input{width:100%;min-width:90px;font:500 .95rem var(--f-mono);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 8px;min-height:44px}
 .mtable td{padding:6px}
 .mtable input{min-width:80px}
@@ -201,7 +209,21 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
       <div class="field"><label for="in-d">Tool Ø D (mm)</label><input id="in-d" type="number" inputmode="decimal" min="0.1" step="0.1" value="16"></div>
       <div class="field"><label for="in-f">Feed F (mm/min)</label><input id="in-f" type="number" inputmode="numeric" min="0" step="10" placeholder="optional"></div>
       <div class="field"><label for="in-toolmax">Tool max rpm</label><input id="in-toolmax" type="number" inputmode="numeric" min="0" step="100" placeholder="optional"></div>
-      <div class="field"><label for="in-l">Overhang L (mm)</label><input id="in-l" type="number" inputmode="decimal" min="0" step="1" placeholder="optional"><span class="hint">Holder face to tool tip</span></div>
+    </div>
+    <h3 class="sub">Tool assembly</h3>
+    <div class="fields">
+      <div class="field"><label for="in-spindle">Spindle interface</label><select id="in-spindle"></select></div>
+      <div class="field"><label for="in-holder">Holder</label><select id="in-holder"></select></div>
+      <div class="field"><label for="in-lg">Total length (mm)</label><input id="in-lg" type="number" inputmode="decimal" min="0" step="1" placeholder="gauge length"><span class="hint">Spindle face to tool tip</span></div>
+      <div class="field"><label for="in-l">Stick-out (mm)</label><input id="in-l" type="number" inputmode="decimal" min="0" step="1" placeholder="e.g. 48"><span class="hint">Holder face to tool tip</span></div>
+      <div class="field"><label for="in-dh">Holder front Ø (mm)</label><input id="in-dh" type="number" inputmode="decimal" min="0" step="1" placeholder="estimate"><span class="hint" id="in-dh-hint">optional</span></div>
+    </div>
+    <h3 class="sub">Cut</h3>
+    <div class="fields">
+      <div class="field"><label for="in-mat">Material</label><select id="in-mat"></select></div>
+      <div class="field"><label for="in-strat">Strategy</label><select id="in-strat"></select><span class="hint">Fills ae / ap from D; your own values stay</span></div>
+      <div class="field"><label for="in-ae">ae radial (mm)</label><input id="in-ae" type="number" inputmode="decimal" min="0" step="0.1"></div>
+      <div class="field"><label for="in-ap">ap axial (mm)</label><input id="in-ap" type="number" inputmode="decimal" min="0" step="0.1"></div>
     </div>
     <div class="btns">
       <div class="seg" role="group" aria-label="Measurement mode">
@@ -264,6 +286,19 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
       <p class="note" id="sp-advice" hidden></p>
     </div>
   </div>
+
+  <div class="card" id="asm-card">
+    <h2>Setup check <small>estimate from geometry, no measurement needed</small></h2>
+    <p class="small dim" id="asm-empty">Enter tool Ø and stick-out in Setup to see stiffness, natural frequencies and the stable depth of cut.</p>
+    <div id="asm-body" hidden>
+      <dl class="kv" id="asm-kv"></dl>
+      <div style="display:grid;gap:6px;margin-top:12px"><span class="lbl">Where the tip deflection comes from</span><div class="flexbar" id="asm-bar"></div><div class="flexleg" id="asm-leg"></div></div>
+      <p class="note" id="asm-note" style="margin-top:12px"></p>
+      <div class="btns" style="margin-top:10px"><button class="btn small" id="asm-cal" type="button">This ap is my known limit: calibrate</button><button class="btn small" id="asm-cal-reset" type="button">Reset factor</button></div>
+      <p class="small" id="asm-cal-msg" role="status"></p>
+      <p class="small dim" style="margin-top:8px">Beam model of spindle, interface, holder (with taper), clamping and tool with typical values, not a measurement. Expect errors of ±30–50 %: use it to compare setups and to judge where a measured frequency comes from. The stable depth is the single-mode worst case over all speeds, multiplied by an empirical factor (default 12, see Machines → Analysis settings), because the plain theory is far too cautious for real end-mill cuts (helix, small ae, process damping). Face mills get a quarter of the factor. Calibrate it once with a cut whose chatter limit you know. A good speed pocket is taken as three times the worst case.</p>
+    </div>
+  </div>
 </section>
 
 <!-- ================= COMPARE ================= -->
@@ -291,11 +326,16 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
     <h2 id="tool-form-h">Add tool</h2>
     <form id="tool-form" class="fields" autocomplete="off">
       <div class="field" style="grid-column:1/-1"><label for="t-name">Tool / ID</label><input id="t-name" type="text" required placeholder="e.g. T12 Ø16 R0.8 VHM"></div>
-      <div class="field"><label for="t-holder">Holder</label><input id="t-holder" type="text" placeholder="Shrink / Hydro / ..."></div>
+      <div class="field"><label for="t-holder">Holder ID</label><input id="t-holder" type="text" placeholder="e.g. SF HSK100 Ø16 L160"></div>
       <div class="field"><label for="t-machine">Machine</label><select id="t-machine"></select></div>
+      <div class="field"><label for="t-spindle">Spindle</label><select id="t-spindle"></select></div>
+      <div class="field"><label for="t-htype">Holder type</label><select id="t-htype"></select></div>
+      <div class="field"><label for="t-lg">Total length (mm)</label><input id="t-lg" type="number" step="0.5" inputmode="decimal"></div>
+      <div class="field"><label for="t-mat">Material</label><select id="t-mat"></select></div>
+      <div class="field"><label for="t-strat">Strategy</label><select id="t-strat"></select></div>
       <div class="field"><label for="t-d">Ø D (mm)</label><input id="t-d" type="number" step="0.1" inputmode="decimal"></div>
       <div class="field"><label for="t-z">Teeth z</label><input id="t-z" type="number" step="1" inputmode="numeric"></div>
-      <div class="field"><label for="t-l">Overhang L (mm)</label><input id="t-l" type="number" step="0.5" inputmode="decimal"></div>
+      <div class="field"><label for="t-l">Stick-out (mm)</label><input id="t-l" type="number" step="0.5" inputmode="decimal"></div>
       <div class="field"><label for="t-fc">Chatter f (Hz)</label><input id="t-fc" type="number" step="1" inputmode="decimal"></div>
       <div class="field"><label for="t-fn">Tap test fn (Hz)</label><input id="t-fn" type="number" step="1" inputmode="decimal"></div>
       <div class="field"><label for="t-bad">Chatters at (rpm)</label><input id="t-bad" type="number" step="10" inputmode="numeric"></div>
@@ -358,7 +398,8 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
       </div>
       <dl class="kv" id="oh-kv"></dl>
       <div class="table-scroll"><table><thead><tr><th>L/D</th><th>L (mm)</th><th>k (N/µm)</th><th>fn (Hz)</th><th>Depth vs now</th></tr></thead><tbody id="oh-body"></tbody></table></div>
-      <p class="small dim">Solid cantilever with core Ø 0.8·D, holder and spindle rigid. Real values are lower, but the ratios between two overhangs are reliable: k ∝ 1/L³, fn ∝ 1/L², limiting depth ∝ k.</p>
+      <p class="small dim" id="oh-tbl-note"></p>
+      <p class="small dim">"Assembly" values use spindle, holder and holder length from Setup (same holder, only the stick-out changes) and include holder and spindle compliance, so they change less than the tool alone. "Tool alone" and the table: solid cantilever with core Ø 0.8·D on a rigid holder (k ∝ 1/L³, fn ∝ 1/L²); its absolute values are too high. The limiting depth scales roughly with k.</p>
     </div>
   </div>
 
@@ -378,7 +419,7 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
   <div class="card">
     <h2>Machine profiles <small>speed limits for the suggestions</small></h2>
     <p class="note warn small">The default limits are placeholders. Check the spindle data plate or machine documentation and correct them.</p>
-    <div class="table-scroll"><table class="mtable"><thead><tr><th>Name</th><th>n min</th><th>n max</th><th></th></tr></thead><tbody id="m-body"></tbody></table></div>
+    <div class="table-scroll"><table class="mtable"><thead><tr><th>Name</th><th>n min</th><th>n max</th><th>Spindle</th><th></th></tr></thead><tbody id="m-body"></tbody></table></div>
     <div class="btns">
       <button class="btn small" id="m-add" type="button">Add machine</button>
       <button class="btn small" id="m-reset" type="button">Restore defaults</button>
@@ -390,6 +431,7 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
     <div class="fields">
       <div class="field"><label for="set-mains">Mains frequency</label><select id="set-mains"><option value="60">60 Hz (US)</option><option value="50">50 Hz (EU)</option><option value="0">Ignore</option></select></div>
       <div class="field"><label for="set-fmin">Ignore below (Hz)</label><input id="set-fmin" type="number" step="5" value="40" inputmode="numeric"></div>
+      <div class="field"><label for="set-calib">Stability factor</label><input id="set-calib" type="number" step="0.5" value="12" inputmode="decimal"><span class="hint">Default 12. Set it from a known cut with the button in Setup check.</span></div>
     </div>
     <p class="small dim">Mains hum peaks are labelled and never picked as chatter. Very low frequencies are mostly handling noise.</p>
   </div>
@@ -830,7 +872,141 @@ const ChatterCore = (function () {
     return 10 * Math.log10(s + 1e-14);
   }
 
-  return { fft, hann, frameSpectrum, welch, toDb, rmsDb, noiseFloor, findPeaks, classify, analyzeCut,
+  /* ---------- Tool assembly model ----------
+     Static tip compliance of spindle + interface + holder + clamp + tool as a stepped cantilever:
+     a force F at the tip bends every segment with the moment arm to the tip.
+     Values are engineering estimates for comparing setups, not measured data. */
+  const SPINDLES = {
+    /* kr: radial stiffness at the spindle nose N/µm; kth: tilt stiffness of bearings + interface Nm/rad;
+       m: effective spindle mass at the nose kg; body: max. holder body Ø mm; fl/flLen: flange Ø and length mm
+       (the flange sits right in front of the spindle face, inside the gauge length) */
+    "HSK-A100": { kr: 250, kth: 2.5e6, m: 6.0, body: 75, fl: 100, flLen: 28 },
+    "HSK-A63":  { kr: 150, kth: 1.0e6, m: 3.0, body: 50, fl: 63,  flLen: 24 },
+    "HSK-A125": { kr: 320, kth: 4.0e6, m: 8.0, body: 90, fl: 125, flLen: 32 },
+    "SK50/BT50":{ kr: 220, kth: 2.0e6, m: 6.0, body: 70, fl: 97,  flLen: 20 },
+    "SK40/BT40":{ kr: 120, kth: 0.7e6, m: 3.0, body: 50, fl: 63,  flLen: 16 },
+    "Capto C8": { kr: 240, kth: 2.3e6, m: 6.0, body: 70, fl: 80,  flLen: 22 },
+    "Capto C6": { kr: 160, kth: 1.1e6, m: 3.5, body: 50, fl: 63,  flLen: 20 }
+  };
+  /* clamp: extra effective length in multiples of D at the holder face; zeta: typical damping of the assembly;
+     nose: estimated holder front diameter as a function of D; taper: half angle in degrees from the nose toward the spindle */
+  const HOLDERS = {
+    shrink:  { name: "Shrink fit",            clamp: 0.30, zeta: 0.020, taper: 4.5, nose: D => D + 11 },
+    hydro:   { name: "Hydraulic",             clamp: 0.50, zeta: 0.028, taper: 2, nose: D => D + 16 },
+    power:   { name: "Power / milling chuck", clamp: 0.35, zeta: 0.025, taper: 2, nose: D => D + 30 },
+    er:      { name: "Collet ER",             clamp: 1.60, zeta: 0.028, taper: 6, nose: D => Math.max(D + 22, 1.9 * D + 14) },
+    weldon:  { name: "Weldon / side lock",    clamp: 0.80, zeta: 0.025, taper: 0, nose: D => D + 26 },
+    shell:   { name: "Shell mill arbor (face / insert cutter)", clamp: 0.10, zeta: 0.030, taper: 0, nose: D => Math.max(40, 0.5 * D), shell: true },
+    damped:  { name: "Damped holder / extension", clamp: 0.40, zeta: 0.050, taper: 0, nose: D => D + 20 }
+  };
+  /* Ks: specific cutting force N/mm² used as the tangential coefficient in the stability estimate (relative values
+     matter, the absolute level is absorbed by the calibration factor); vc: typical range m/min for coated solid carbide */
+  const MATERIALS = {
+    h13soft: { name: "H13 / 1.2344 soft annealed (~200 HB)", Ks: 2100, vc: [140, 220] },
+    h13_40:  { name: "H13 / 1.2344 at 40 HRC",               Ks: 2600, vc: [90, 160] },
+    h13_48:  { name: "H13 / 1.2344 at 45–50 HRC",            Ks: 3000, vc: [60, 120] },
+    p20:     { name: "P20 / 1.2311 (~30 HRC)",               Ks: 2300, vc: [150, 240] },
+    c45:     { name: "C45 / 1.0503",                         Ks: 2000, vc: [180, 280] },
+    gg25:    { name: "Grey cast iron GG25",                  Ks: 1300, vc: [150, 250] },
+    alu:     { name: "Aluminium alloy",                      Ks: 800,  vc: [300, 1000] }
+  };
+  /* ae and ap as multiples of D; mu: share of the cutting force that drives the bending direction */
+  const STRATEGIES = {
+    hpc:    { name: "HPC (trochoidal, small ae)", ae: 0.10, ap: 1.5,  mu: 0.50 },
+    hdc01:  { name: "HDC ae 0.1×D",               ae: 0.10, ap: 0.5,  mu: 0.55 },
+    hdc02:  { name: "HDC ae 0.2×D",               ae: 0.20, ap: 0.5,  mu: 0.60 },
+    hdc03:  { name: "HDC ae 0.3×D",               ae: 0.30, ap: 0.5,  mu: 0.60 },
+    hdc04:  { name: "HDC ae 0.4×D",               ae: 0.40, ap: 0.5,  mu: 0.60 },
+    hdc05:  { name: "HDC ae 0.5×D",               ae: 0.50, ap: 0.5,  mu: 0.60 },
+    highfeed:{ name: "Highfeed (small ap, axial force)", ae: 0.70, ap: 0.06, mu: 0.25 },
+    custom: { name: "Custom",                     ae: 0.30, ap: 0.5,  mu: 0.60 }
+  };
+
+  /* table lookup that ignores inherited keys such as "constructor" */
+  function own(obj, k) { return Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : null; }
+  /* inp: {spindle, holder, D, L (stick-out), Lg (gauge length from spindle face), Dh (optional holder front Ø)} all mm */
+  function assembly(inp) {
+    const sp = own(SPINDLES, inp.spindle) || SPINDLES["HSK-A100"], h = own(HOLDERS, inp.holder) || HOLDERS.shrink;
+    const D = inp.D, L = inp.L;
+    if (!(D > 0 && L > 0)) return null;
+    /* unknown gauge length: typical holder (shell mill arbors are short stubs) */
+    const Lg = inp.Lg > L ? inp.Lg : L + (h.shell ? 60 : 2.5 * D + 40);
+    const Lh = Lg - L;
+    const Dh = inp.Dh > D || (h.shell && inp.Dh > 0) ? inp.Dh : h.nose(D);
+    const Ec = 600e9, Es = 210e9, rc = 14500, rs = 7850, mm = 1e-3;
+    /* cutting part: fluted length (core about 0.8·D) near the tip, full shank Ø behind it; shell mills: cutter body */
+    const Etool = h.shell ? Es : Ec, rTool = h.shell ? rs : rc;
+    const dFl = (h.shell ? 0.6 : 0.8) * D * mm, dSh = (h.shell ? 0.6 : 1.0) * D * mm;
+    const Lfl = Math.min(L, h.shell ? L : 2.5 * D);
+    const IFl = Math.PI * Math.pow(dFl, 4) / 64, ISh = Math.PI * Math.pow(dSh, 4) / 64;
+    /* bore: the clamped shank (length lc) stiffens the holder front; behind it only a small screw/coolant bore */
+    const dIn = h.shell ? 0 : D * mm, lc = h.shell ? 0 : Math.min(Lh, 3 * D), dBack = h.shell ? 0 : 0.5 * D * mm;
+    /* holder Ø grows from the nose toward the spindle with the taper angle, capped at the body Ø of the interface */
+    const tg = 2 * Math.tan((h.taper || 0) * Math.PI / 180), Dbody = Math.max(sp.body, Dh);
+    const flStart = Lh - Math.min(sp.flLen, 0.5 * Lh);
+    const dAt = u => (u >= flStart ? Math.max(sp.fl, Dh) : Math.min(Dbody, Dh + tg * u)) * mm;   /* u = mm from the nose */
+    const Lm = L * mm, Lgm = Lg * mm, Lhm = Lh * mm;
+    /* compliances in m/N for a unit force at the tip: integral of arm² / (E I) along the beam */
+    const cSpindle = 1 / (sp.kr * 1e6) + Lgm * Lgm / sp.kth;
+    const NS = 40;
+    let cHolder = 0, cBaseH = 0, mHolderBody = 0;
+    for (let i = 0; i < NS; i++) {
+      const u = (i + 0.5) / NS * Lh, du = Lh / NS * mm, d = dAt(u), inClamp = u < lc, b = inClamp ? dIn : dBack;
+      /* bending stiffness E·I of the holder wall, plus the clamped tool shank inside it */
+      const EI = Es * Math.PI * (Math.pow(d, 4) - Math.pow(b, 4)) / 64 + (inClamp ? Etool * Math.PI * Math.pow(dIn, 4) / 64 : 0);
+      const arm = (L + u) * mm, armBase = u * mm;
+      cHolder += arm * arm * du / EI;
+      cBaseH += armBase * armBase * du / EI;
+      mHolderBody += rs * Math.PI * (d * d - b * b) / 4 * du;
+    }
+    const lf = Lfl * mm;
+    const cTool = Math.pow(lf, 3) / (3 * Etool * IFl) + (Math.pow(Lm, 3) - Math.pow(lf, 3)) / (3 * Etool * ISh);
+    const cClamp = Lm * Lm * (h.clamp * D * mm) / (Etool * ISh);
+    const cTot = cSpindle + cHolder + cClamp + cTool;
+    const kTip = 1 / cTot / 1e6;                              /* N/µm */
+    /* masses */
+    const mTool = rTool * Math.PI / 4 * (dFl * dFl * lf + dSh * dSh * (Lm - lf));
+    const mHolder = mHolderBody + rTool * Math.PI * dIn * dIn / 4 * lc * mm;
+    /* Two modes. Tool mode: tool mass (cantilever equivalent 0.236·m) on the whole tip compliance.
+       Spindle/holder mode: spindle, holder and tool mass on the compliance at the holder nose. */
+    const fTool = Math.sqrt(1 / cTot / (0.236 * mTool)) / (2 * Math.PI);
+    const cBase = 1 / (sp.kr * 1e6) + Lhm * Lhm / sp.kth + cBaseH;
+    const fBase = Math.sqrt(1 / cBase / (sp.m + mHolder + mTool)) / (2 * Math.PI);
+    const flexTool = cTool + cClamp, flexBase = cSpindle + cHolder;
+    const dominant = flexTool >= flexBase ? "tool" : "base";
+    return { Lg, Lh, Dh, kTip, fTool, fBase, fn: dominant === "tool" ? fTool : fBase, dominant, zeta: h.zeta, mTool, mHolder,
+      share: { spindle: cSpindle / cTot, holder: cHolder / cTot, clamp: cClamp / cTot, tool: cTool / cTot }, guessedLg: !(inp.Lg > L),
+      shell: !!h.shell, flLen: sp.flLen };
+  }
+  /* Worst-case stable depth of cut over all speeds (1 DOF, average directional factor). k in N/µm, Ks N/mm². */
+  function stableDepth(k, zeta, Ks, mu, z, aeD) {
+    const phi = Math.acos(1 - 2 * Math.min(1, Math.max(0.001, aeD)));
+    const ze = Math.max(z * phi / (2 * Math.PI), 0.15);
+    return { aLim: 2 * k * 1000 * zeta * (1 + zeta) / (Ks * mu * ze), ze, phiDeg: phi * 180 / Math.PI };
+  }
+  /* Maximum chip thickness with radial chip thinning (ae < D/2) */
+  function chipThickness(fz, aeD) {
+    const a = Math.min(1, Math.max(0, aeD));
+    return a >= 0.5 ? fz : fz * 2 * Math.sqrt(a * (1 - a));
+  }
+  function vcStatus(matKey, vc) {
+    const m = own(MATERIALS, matKey);
+    if (!m || !(vc > 0)) return null;
+    return { lo: m.vc[0], hi: m.vc[1], status: vc < m.vc[0] * 0.9 ? "low" : vc > m.vc[1] * 1.1 ? "high" : "ok" };
+  }
+  /* Which part of the assembly does a measured frequency belong to? */
+  function sourceOf(f, asm) {
+    if (!asm || !(f > 0)) return null;
+    const inT = f >= 0.6 * asm.fTool && f <= 1.35 * asm.fTool, inB = f >= 0.55 * asm.fBase && f <= 1.5 * asm.fBase;
+    if (inT && inB) return Math.abs(Math.log(f / asm.fTool)) < Math.abs(Math.log(f / asm.fBase)) ? "tool" : "base";
+    if (inT) return "tool";
+    if (inB) return "base";
+    if (f < 0.55 * Math.min(asm.fTool, asm.fBase)) return "below";
+    return f > 1.35 * Math.max(asm.fTool, asm.fBase) ? "above" : "between";
+  }
+
+  return { SPINDLES, HOLDERS, MATERIALS, STRATEGIES, assembly, stableDepth, chipThickness, vcStatus, sourceOf,
+    fft, hann, frameSpectrum, welch, toDb, rmsDb, noiseFloor, findPeaks, classify, analyzeCut,
     suggestSpeeds, phaseInfo, pickRecommendations, cuttingSpeed, scaleFeed, overhang,
     detectTaps, tapSpectrum, TAP_SKIP, analyzeTap, compress, levelAt, bandEnergyDb, refineComb };
 })();
@@ -862,20 +1038,21 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* ---------- machines ---------- */
 const DEFAULT_MACHINES=[
-  {id:"dmu210",name:"DMU 210 P",nMin:20,nMax:12000},
-  {id:"dmu125",name:"DMU 125 P",nMin:20,nMax:18000},
-  {id:"g550",name:"GROB G550",nMin:20,nMax:16000},
-  {id:"other",name:"Other",nMin:20,nMax:24000}
+  {id:"dmu210",name:"DMU 210 P",nMin:20,nMax:12000,spindle:"HSK-A100"},
+  {id:"dmu125",name:"DMU 125 P",nMin:20,nMax:18000,spindle:"HSK-A100"},
+  {id:"g550",name:"GROB G550",nMin:20,nMax:16000,spindle:"HSK-A100"},
+  {id:"other",name:"Other",nMin:20,nMax:24000,spindle:"HSK-A63"}
 ];
 function cleanMachine(m){
   if(!m||typeof m!=="object"||m.id==null)return null;
-  const nMin=+m.nMin,nMax=+m.nMax,o={id:String(m.id),name:String(m.name||m.id).slice(0,60),nMin:isFinite(nMin)&&nMin>=0?nMin:20,nMax:isFinite(nMax)&&nMax>0?nMax:12000};
+  const nMin=+m.nMin,nMax=+m.nMax,o={id:String(m.id),name:String(m.name||m.id).slice(0,60),nMin:isFinite(nMin)&&nMin>=0?nMin:20,nMax:isFinite(nMax)&&nMax>0?nMax:12000,spindle:Object.prototype.hasOwnProperty.call(C.SPINDLES,m.spindle)?m.spindle:"HSK-A100"};
   if(o.nMax<=o.nMin)o.nMax=o.nMin+100;return o;
 }
 let machines=store.list("machines").map(cleanMachine).filter(Boolean);
 if(!machines.length)machines=DEFAULT_MACHINES.map(m=>Object.assign({},m));
-const settings={mains:60,fmin:40};
-{const st=store.get("settings",{})||{};if([0,50,60].includes(+st.mains))settings.mains=+st.mains;if(isFinite(+st.fmin)&&+st.fmin>=10)settings.fmin=+st.fmin;}
+const CAL_DEF=12,CAL_MIN=0.2,CAL_MAX=150;
+const settings={mains:60,fmin:40,calib:CAL_DEF};
+{const st=store.get("settings",{})||{};if([0,50,60].includes(+st.mains))settings.mains=+st.mains;if(isFinite(+st.fmin)&&+st.fmin>=10)settings.fmin=+st.fmin;if(isFinite(+st.calib)&&+st.calib>=CAL_MIN&&+st.calib<=CAL_MAX)settings.calib=+st.calib;}
 function machineById(id){return machines.find(m=>m.id===id)||machines[0];}
 function fillMachineSelects(){
   for(const id of ["in-machine","t-machine"]){
@@ -889,12 +1066,13 @@ function renderMachines(){
     <td><input aria-label="Machine name" data-k="name" value="${esc(m.name)}"></td>
     <td><input aria-label="Minimum rpm" data-k="nMin" type="number" inputmode="numeric" value="${esc(m.nMin)}"></td>
     <td><input aria-label="Maximum rpm" data-k="nMax" type="number" inputmode="numeric" value="${esc(m.nMax)}"></td>
+    <td><select aria-label="Spindle interface" data-k="spindle">${Object.keys(C.SPINDLES).map(k=>`<option${k===m.spindle?" selected":""}>${esc(k)}</option>`).join("")}</select></td>
     <td><button class="btn small danger" type="button" data-del="${i}" aria-label="Delete ${esc(m.name)}" title="Delete" ${machines.length<2?"disabled":""}>✕</button></td></tr>`).join("");
 }
 $("m-body").addEventListener("change",e=>{
   const tr=e.target.closest("tr"),k=e.target.dataset.k;if(!tr||!k)return;
   const m=machines[+tr.dataset.i];
-  if(k==="name")m.name=e.target.value.trim()||m.name;else{const v=parseFloat(e.target.value);if(isFinite(v)&&v>=0)m[k]=v;}
+  if(k==="name")m.name=e.target.value.trim()||m.name;else if(k==="spindle"){if(C.SPINDLES[e.target.value]){m.spindle=e.target.value;if($("in-machine").value===m.id){$("in-spindle").value=m.spindle;saveInputs();}}}else{const v=parseFloat(e.target.value);if(isFinite(v)&&v>=0)m[k]=v;}
   if(m.nMax<=m.nMin){m.nMax=m.nMin+100;const mx=tr.querySelector('[data-k="nMax"]');if(mx)mx.value=m.nMax;}
   saveMachines();
 });
@@ -902,30 +1080,54 @@ $("m-body").addEventListener("click",e=>{
   const b=e.target.closest("[data-del]");if(!b)return;
   machines.splice(+b.dataset.del,1);saveMachines();renderMachines();
 });
-$("m-add").addEventListener("click",()=>{machines.push({id:uid(),name:"New machine",nMin:20,nMax:12000});saveMachines();renderMachines();});
+$("m-add").addEventListener("click",()=>{machines.push({id:uid(),name:"New machine",nMin:20,nMax:12000,spindle:"HSK-A100"});saveMachines();renderMachines();});
 $("m-reset").addEventListener("click",()=>{machines=DEFAULT_MACHINES.map(m=>Object.assign({},m));saveMachines();renderMachines();});
 function saveMachines(){const ok=store.set("machines",machines);fillMachineSelects();$("m-msg").textContent=ok?"Saved.":"Saved for this session only (browser storage is blocked).";refreshResult();}
-$("set-mains").value=String(settings.mains);$("set-fmin").value=settings.fmin;
+$("set-mains").value=String(settings.mains);$("set-fmin").value=settings.fmin;$("set-calib").value=settings.calib;
+$("set-calib").addEventListener("change",()=>{const v=num("set-calib");settings.calib=isFinite(v)&&v>0?Math.max(CAL_MIN,Math.min(CAL_MAX,v)):CAL_DEF;$("set-calib").value=settings.calib;store.set("settings",settings);refreshResult();});
 $("set-mains").addEventListener("change",()=>{settings.mains=+$("set-mains").value;store.set("settings",settings);reanalyze();});
 $("set-fmin").addEventListener("change",()=>{const v=num("set-fmin");settings.fmin=isFinite(v)?Math.max(10,v):40;store.set("settings",settings);reanalyze();});
 
 /* ---------- inputs ---------- */
-const INPUTS=["in-machine","in-rpm","in-z","in-d","in-f","in-toolmax","in-l"];
+const INPUTS=["in-machine","in-rpm","in-z","in-d","in-f","in-toolmax","in-spindle","in-holder","in-lg","in-l","in-dh","in-mat","in-strat","in-ae","in-ap"];
+function fillOptions(id,obj,label){const s=$(id),cur=s.value;s.innerHTML=Object.keys(obj).map(k=>`<option value="${esc(k)}">${esc(label?obj[k].name:k)}</option>`).join("");if(obj[cur])s.value=cur;}
+for(const id of ["in-spindle","t-spindle"])fillOptions(id,C.SPINDLES,false);
+for(const id of ["in-holder","t-htype"])fillOptions(id,C.HOLDERS,true);
+for(const id of ["in-mat","t-mat"])fillOptions(id,C.MATERIALS,true);
+for(const id of ["in-strat","t-strat"])fillOptions(id,C.STRATEGIES,true);
+$("in-mat").value="h13_40";$("in-strat").value="hdc02";
 const savedIn=store.get("inputs",{})||{};
 fillMachineSelects();renderMachines();
 for(const id of INPUTS){if(savedIn[id]!=null&&savedIn[id]!=="")$(id).value=savedIn[id];}
 if(!machines.some(m=>m.id===$("in-machine").value))$("in-machine").value=machines[0].id;
+/* a saved key that no longer exists leaves a select empty: fall back to the default */
+for(const [id,obj,def] of [["in-spindle",C.SPINDLES,"HSK-A100"],["in-holder",C.HOLDERS,"shrink"],["in-mat",C.MATERIALS,"h13_40"],["in-strat",C.STRATEGIES,"hdc02"]])if(!obj[$(id).value])$(id).value=def;
 function rpmEff(){const i=num("in-rpm");return S.mode==="cut"&&S.result&&isFinite(S.result.rpmEst)?S.result.rpmUsed:i;}
 function inputs(){
   const m=machineById($("in-machine").value);
   const toolMax=num("in-toolmax");
-  return {rpm:rpmEff(),rpmIn:num("in-rpm"),z:Math.round(num("in-z")),D:num("in-d"),F:num("in-f"),L:num("in-l"),machine:m,
+  return {rpm:rpmEff(),rpmIn:num("in-rpm"),z:Math.round(num("in-z")),D:num("in-d"),F:num("in-f"),L:num("in-l"),Lg:num("in-lg"),Dh:num("in-dh"),spindle:$("in-spindle").value,holder:$("in-holder").value,mat:$("in-mat").value,strat:$("in-strat").value,ae:num("in-ae"),ap:num("in-ap"),machine:m,
     nMin:m.nMin,nMax:isFinite(toolMax)&&toolMax>0?Math.min(m.nMax,toolMax):m.nMax};
 }
+/* aeManual: ae/ap were typed by hand. Then a change of D or holder keeps them; choosing a strategy again overwrites them. */
+let aeManual=savedIn._aeManual===true;
+function saveInputs(){const o={_aeManual:aeManual};for(const k of INPUTS)o[k]=$(k).value;store.set("inputs",o);}
+/* Strategy presets set ae and ap from D. Face mills (shell arbor): ap from the preset is capped, inserts limit it. */
+function applyStrategy(){
+  const k=$("in-strat").value,st=C.STRATEGIES[k],D=num("in-d");if(!st||k==="custom"||!(D>0))return;
+  const shell=C.HOLDERS[$("in-holder").value]&&C.HOLDERS[$("in-holder").value].shell;
+  $("in-ae").value=+(st.ae*D).toFixed(1);$("in-ap").value=+(shell?Math.min(st.ap*D,0.08*D):st.ap*D).toFixed(2);
+}
+function syncSpindle(){const m=machineById($("in-machine").value);if(m&&C.SPINDLES[m.spindle])$("in-spindle").value=m.spindle;}
 for(const id of INPUTS)$(id).addEventListener("input",()=>{
-  const o={};for(const k of INPUTS)o[k]=$(k).value;store.set("inputs",o);
-  reanalyze();
+  if(id==="in-ae"||id==="in-ap")aeManual=true;
+  if(id==="in-strat"){aeManual=false;applyStrategy();}
+  else if((id==="in-d"||id==="in-holder")&&!aeManual)applyStrategy();
+  if(id==="in-machine")syncSpindle();
+  saveInputs();reanalyze();
 });
+if(savedIn["in-spindle"]==null)syncSpindle();
+if(!$("in-ae").value||!$("in-ap").value)applyStrategy();
 
 /* ---------- state ---------- */
 const S={mode:"cut",range:5000,running:false,frozen:null,live:null,slow:null,sr:48000,
@@ -1159,7 +1361,8 @@ function refreshResult(){
     }else{pill="no data";text=!(i.rpmIn>0&&i.z>0)?"Enter spindle speed n and teeth z above, the analysis needs both.":S.running?"Listening…":"Start the microphone or load a recording.";}
   }
   if(isFinite(S.manualF)){pill="Manual pick";pillCls="manual";text="You picked this peak. Use automatic pick to go back.";}
-  if(act&&i.L>0&&i.D>0){const e=C.overhang(i.D,i.L,"carbide").fn;kv.push(["Overhang L/D",fmt(i.L/i.D,1)]);kv.push(["Tool bending (est.)",fmt(Math.round(e/20)*10,0)+"–"+fmt(Math.round(e/10)*10,0)+" Hz"]);text+=overhangHint(act.f,i,e);}
+  const asm=asmNow(i);
+  if(act&&asm){kv.push([asm.shell?"Cutter/arbor mode (est.)":"Tool mode (est.)",r10(asm.fTool)+" Hz"]);kv.push(["Spindle/holder mode (est.)",r10(asm.fBase)+" Hz"]);text+=sourceHint(C.sourceOf(act.f,asm),act.f,asm,i);}
   $("res-src").textContent=src;
   const pe=$("res-pill");pe.textContent=pill||"no data";pe.className="pill "+pillCls;
   $("res-f").innerHTML=act?fmt(act.f,act.f<100?1:0)+" <small>Hz</small>":(S.mode==="cut"&&S.result&&!S.result.cand?"OK <small>stable</small>":"– <small>Hz</small>");
@@ -1172,15 +1375,79 @@ function refreshResult(){
   $("btn-snap").disabled=!can;$("btn-totool").disabled=!act;
   renderSpeeds(act,i);
   renderFixBand(act);
+  renderSetupCheck(i);
 }
-/* Compare the measured frequency with the cantilever estimate of the tool's first bending mode.
-   The solid-shank estimate is an upper bound; holder and spindle compliance pull the real mode to roughly 50-100 % of it. */
-function overhangHint(f,i,e){
-  const r=f/e,r10=v=>fmt(Math.round(v/10)*10,0),rng=r10(0.5*e)+"–"+r10(e)+" Hz",dd=fmt(i.D,i.D%1?1:0);
-  if(r<0.35)return " With Ø "+dd+" mm and "+fmt(i.L,0)+" mm overhang the tool itself bends at about "+rng+". "+fmt(f,0)+" Hz is well below that, so the holder, spindle, workpiece or fixture is the likely source: a shorter tool helps little, check clamping and holder first.";
-  if(r<=1.15)return " This fits the bending mode of the tool (estimated "+rng+" for Ø "+dd+" mm, "+fmt(i.L,0)+" mm overhang). Speed tuning works here, and a shorter overhang raises the limit with the third power.";
-  return " This is above the estimated bending mode of the tool ("+rng+"): likely a higher tool mode, a thin wall or the cutting edge (check fz and wear).";
+const r10=v=>fmt(Math.round(v/10)*10,0);
+function asmNow(i){return C.assembly({spindle:i.spindle,holder:i.holder,D:i.D,L:i.L,Lg:i.Lg,Dh:i.Dh});}
+const POCKET=3;   /* a good speed pocket allows about this multiple of the worst-case depth */
+/* The calibration factor mostly stands for process damping and small-ae effects of end mills (short chatter wavelength).
+   Face mills chatter at low frequency with long waves, where that reserve is much smaller: only a quarter of the factor. */
+const calMult=a=>a&&a.shell?0.25:1;
+/* Assembly + stable depth for the current inputs; damping from a tap test when one is available */
+function setupModel(i){
+  const a=asmNow(i);if(!a)return null;
+  const mat=C.MATERIALS[i.mat]||C.MATERIALS.h13_40,st=C.STRATEGIES[i.strat]||C.STRATEGIES.custom;
+  const tz=S.tap.result&&S.tap.result.zeta,tapZ=isFinite(tz)&&tz>0.003&&tz<0.2;
+  const zeta=tapZ?tz:a.zeta,aeD=i.ae>0&&i.D>0?Math.min(1,i.ae/i.D):st.ae,z=i.z>0?i.z:4;
+  return {a,mat,st,zeta,tapZ,aeD,z,sd:C.stableDepth(a.kTip,zeta,mat.Ks,st.mu,z,aeD)};
 }
+/* Which part of the assembly a measured frequency points to (estimate) */
+function sourceHint(src,f,a,i){
+  const t=r10(a.fTool)+" Hz",b=r10(a.fBase)+" Hz";
+  const pre=" Setup check (rough estimate): ";
+  if(src==="tool")return pre+(a.shell?"close to the estimated cutter/arbor mode ("+t+"). Speed tuning works here; a shorter arbor helps.":"close to the estimated tool bending mode ("+t+"), so the tool probably bends. Speed tuning works here; a shorter stick-out or a bigger Ø raises the limit most.");
+  if(src==="base")return pre+"close to the estimated spindle/holder mode ("+b+"), so holder and spindle probably move. A shorter or stronger holder helps more than a shorter tool.";
+  if(src==="below")return pre+"below both estimated modes (tool "+t+", spindle/holder "+b+"). Look at the workpiece, fixture, magnetic plate or machine structure first.";
+  if(src==="between")return pre+"between the estimated modes (spindle/holder "+b+", tool "+t+"). Often a slim or long holder bending on its own, or the estimate is off. A tap test on the tool tip settles it.";
+  return pre+"above the estimated modes (tool "+t+", spindle/holder "+b+"). A higher mode, a thin wall or the cutting edge, or the estimate is off. A tap test settles it.";
+}
+/* Setup check: assembly stiffness, modes, stable depth, vc and chip thickness */
+function renderSetupCheck(i){
+  const h=C.HOLDERS[i.holder];
+  $("in-dh").placeholder=i.D>0&&h?"≈ "+Math.round(h.nose(i.D)):"estimate";
+  const m=setupModel(i);
+  $("asm-empty").hidden=!!m;$("asm-body").hidden=!m;if(!m)return;
+  const {a,mat,zeta,tapZ,aeD,z,sd}=m,aSafe=sd.aLim*settings.calib*calMult(a),aPocket=POCKET*aSafe;
+  const kv=[["Stiffness at tip",fmt(a.kTip,1)+" N/µm"],[a.shell?"Cutter/arbor mode":"Tool bending mode",r10(a.fTool)+" Hz"],["Spindle/holder mode",r10(a.fBase)+" Hz"],
+    ["Holder length",fmt(a.Lh,0)+" mm"+(a.guessedLg?" (assumed)":"")],["Stick-out L/D",fmt(i.L/i.D,1)],
+    ["Damping ζ",fmt(zeta*100,1)+" %"+(tapZ?" (tap test)":" (typical)")],["Teeth in cut",fmt(sd.ze,2)],
+    ["Stable at any speed (est.)","≤ "+fmt(aSafe,aSafe<10?1:0)+" mm"],["In a good speed pocket (est.)","≤ "+fmt(aPocket,aPocket<10?1:0)+" mm"]];
+  const msgs=[];let cls="note";
+  if(i.Lg>0&&!(i.Lg>i.L))msgs.push("Total length must be longer than the stick-out; a typical holder length is assumed instead.");
+  else if(!a.guessedLg&&a.Lh<a.flLen)msgs.push("Check the lengths: only "+fmt(a.Lh,0)+" mm between spindle face and holder face is shorter than the "+i.spindle+" flange.");
+  if(!(i.z>0))msgs.push("Teeth z is empty: 4 teeth assumed.");
+  if(i.rpm>0&&i.D>0){const vc=C.cuttingSpeed(i.D,i.rpm),vs=C.vcStatus(i.mat,vc);kv.push(["vc now",fmt(vc,0)+" m/min"]);
+    if(vs&&vs.status!=="ok")msgs.push("vc "+fmt(vc,0)+" m/min is "+(vs.status==="high"?"above":"below")+" the typical "+vs.lo+"–"+vs.hi+" m/min for "+mat.name+" (coated solid carbide; check the tool maker's data).");}
+  if(i.F>0&&i.rpm>0&&z>0){const fz=i.F/(i.rpm*z),hx=C.chipThickness(fz,aeD);kv.push(["fz / max chip",fmt(fz,3)+" / "+fmt(hx,3)+" mm"]);
+    if(hx<0.02)msgs.push("The real chip is only "+fmt(hx,3)+" mm thick (chip thinning at ae "+fmt(aeD,2)+"×D): risk of rubbing and squeal. Raise fz.");}
+  $("asm-kv").innerHTML=kv.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("");
+  const parts=[["tool","Tool",a.share.tool,"var(--cyan)"],["clamp","Clamping",a.share.clamp,"var(--violet)"],["holder","Holder",a.share.holder,"var(--amber)"],["spindle","Spindle + interface",a.share.spindle,"var(--faint)"]];
+  $("asm-bar").innerHTML=parts.map(p=>`<i style="width:${(p[2]*100).toFixed(1)}%;background:${p[3]}"></i>`).join("");
+  $("asm-leg").innerHTML=parts.map(p=>`<span><b style="background:${p[3]}"></b>${p[1]} ${fmt(p[2]*100,0)} %</span>`).join("");
+  const LEV={tool:"shorter stick-out or a bigger tool Ø",clamp:"a stiffer clamping (shrink fit or power chuck)",holder:"a shorter or stronger holder",spindle:"less total length or a bigger interface"};
+  const srt=parts.slice().sort((x,y)=>y[2]-x[2]);
+  const lever=LEV[srt[0][0]]+(srt[1][2]>srt[0][2]-0.1?", and "+LEV[srt[1][0]]:"");
+  if(i.ap>0){
+    if(i.ap<=aSafe)msgs.unshift("ap "+fmt(i.ap,1)+" mm is below the estimated limit: likely stable at any speed.");
+    else if(i.ap<=aPocket){msgs.unshift("ap "+fmt(i.ap,1)+" mm likely needs a good speed pocket. Measure the chatter frequency (or do a tap test) and use the speed table.");}
+    else{cls="note warn";msgs.unshift("ap "+fmt(i.ap,1)+" mm is above the estimate even for a good pocket. Expect chatter unless the setup is stiffer or better damped than assumed. Biggest lever here: "+lever+".");}
+  }else msgs.unshift("Enter ap to check the planned cut. Biggest lever for stability here: "+lever+".");
+  if(i.strat==="highfeed")msgs.push("Highfeed pushes mostly along the tool axis, so it tolerates long stick-out much better than side milling.");
+  const n=$("asm-note");n.className=cls;n.textContent=msgs.join(" ");
+}
+/* Calibration: the entered ap becomes the limit in a good speed pocket (the any-speed limit is 1/POCKET of it).
+   Same model inputs as the Setup check (incl. tap-test damping), so the card shows exactly the entered ap afterwards. */
+$("asm-cal").addEventListener("click",()=>{
+  const i=inputs(),m=setupModel(i),msg=$("asm-cal-msg");
+  if(!m||!(i.ap>0)){msg.textContent="Enter tool Ø, stick-out and ap first.";return;}
+  const raw=i.ap/(POCKET*m.sd.aLim*calMult(m.a));
+  if(!isFinite(raw)||raw<=0){msg.textContent="Could not calibrate with these inputs.";return;}
+  settings.calib=Math.max(CAL_MIN,Math.min(CAL_MAX,raw));$("set-calib").value=+settings.calib.toFixed(2);
+  const ok=store.set("settings",settings);
+  msg.textContent=(raw!==settings.calib?"That ap is far outside what the model can explain, so the factor was limited to "+fmt(settings.calib,1)+". Check tool Ø, lengths, holder and ap. ":"Factor set to "+fmt(settings.calib,1)+": ap "+fmt(i.ap,1)+" mm now counts as the limit in a good speed pocket for this setup, and other setups scale from it. ")+(ok?"":"Kept for this session only.");
+  refreshResult();
+});
+$("asm-cal-reset").addEventListener("click",()=>{settings.calib=CAL_DEF;$("set-calib").value=CAL_DEF;store.set("settings",settings);$("asm-cal-msg").textContent="Factor reset to "+CAL_DEF+".";refreshResult();});
 function labelCls(c){return c.type==="tooth"?c.k+"× tooth":c.type==="spindle"?c.k+"× spindle":c.type==="mains"?"mains":"";}
 $("res-chips").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;S.manualF=+b.dataset.f;refreshResult();drawSpec();});
 $("btn-auto").addEventListener("click",()=>{S.manualF=NaN;refreshResult();drawSpec();});
@@ -1201,6 +1468,8 @@ function renderSpeeds(act,i){
     if(r===rec.nearest&&r!==first)tags.push('<span class="tag alt">nearest</span>');
     if(r===rec.best&&r!==first&&r!==rec.nearest)tags.push('<span class="tag alt">largest pocket</span>');
     const F=isFinite(i.F)&&i.F>0?fmt(C.scaleFeed(i.F,i.rpm,r.nRound),0):"–";
+    const vs=isFinite(i.D)?C.vcStatus(i.mat,C.cuttingSpeed(i.D,r.nRound)):null;
+    if(vs&&vs.status!=="ok")tags.push(`<span class="tag warn">vc ${vs.status}</span>`);
     return `<tr class="${r===first?"rec":""}"><td>${r.N}${tags.join("")}</td><td>${nf0.format(r.nRound)}</td><td>${hasN?sgn(r.change*100,1)+" %":"–"}</td><td>${isFinite(i.D)?fmt(C.cuttingSpeed(i.D,r.nRound),0):"–"}</td><td>${F}</td></tr>`;
   }).join("");
   const msgs=[];
@@ -1416,13 +1685,15 @@ function drawCompare(){
 }
 
 /* ---------- tool list ---------- */
-const TF={name:"t-name",holder:"t-holder",machine:"t-machine",D:"t-d",z:"t-z",L:"t-l",fc:"t-fc",fn:"t-fn",bad:"t-bad",good:"t-good",ap:"t-ap",notes:"t-notes"};
-const NUMK=["D","z","L","fc","fn","bad","good"];
+const TF={name:"t-name",holder:"t-holder",machine:"t-machine",spindle:"t-spindle",htype:"t-htype",Lg:"t-lg",mat:"t-mat",strat:"t-strat",D:"t-d",z:"t-z",L:"t-l",fc:"t-fc",fn:"t-fn",bad:"t-bad",good:"t-good",ap:"t-ap",notes:"t-notes"};
+const NUMK=["D","z","L","Lg","fc","fn","bad","good"];
 let editId=null,delId=null;
 function cleanTool(t){
   if(!t||typeof t!=="object"||!t.name)return null;
   const o={id:t.id!=null?String(t.id):uid(),date:isFinite(+t.date)&&+t.date>0?+t.date:Date.now()};
-  for(const k in TF){const v=t[k];o[k]=NUMK.includes(k)?(v==null||v===""||!isFinite(+v)?null:+v):(v==null?"":String(v));}
+  for(const k in TF){const v=t[k];o[k]=NUMK.includes(k)?(v==null||v===""||!isFinite(+v)?null:+v):(v==null?"":String(v).slice(0,2000));}
+  /* keys for the select fields must exist in this version, anything else is dropped */
+  for(const [k,obj] of [["spindle",C.SPINDLES],["htype",C.HOLDERS],["mat",C.MATERIALS],["strat",C.STRATEGIES]])if(o[k]&&!Object.prototype.hasOwnProperty.call(obj,o[k]))o[k]="";
   return o;
 }
 let tools=store.list("tools").map(cleanTool).filter(Boolean);
@@ -1445,7 +1716,7 @@ function renderTools(){
   $("tool-count").textContent=tools.length?tools.length+" saved":"";
   $("tool-list").innerHTML=list.length?list.map(t=>`<div class="tool">
     <h3><span>${esc(t.name)}</span><span class="small dim">${new Date(t.date).toLocaleDateString()}</span></h3>
-    <div class="meta">${[["",machineName(t.machine)],["Holder",t.holder],["Ø",t.D],["z",t.z],["L",t.L!=null?t.L+" mm":null],["fc",t.fc!=null?fmt(t.fc,0)+" Hz":null],["fn",t.fn!=null?fmt(t.fn,0)+" Hz":null],["Chatters",t.bad!=null?nf0.format(t.bad)+" rpm":null],["Stable",t.good!=null?nf0.format(t.good)+" rpm":null],["ap/ae",t.ap]].filter(x=>x[1]!=null&&x[1]!=="").map(([k,v])=>`<span>${esc(k)} <b>${esc(v)}</b></span>`).join("")}</div>
+    <div class="meta">${[["",machineName(t.machine)],["",t.spindle],["",C.HOLDERS[t.htype]?C.HOLDERS[t.htype].name:""],["Holder",t.holder],["Ø",t.D],["z",t.z],["Stick-out",t.L!=null?t.L+" mm":null],["Total",t.Lg!=null?t.Lg+" mm":null],["",C.MATERIALS[t.mat]?C.MATERIALS[t.mat].name:""],["",C.STRATEGIES[t.strat]?C.STRATEGIES[t.strat].name:""],["fc",t.fc!=null?fmt(t.fc,0)+" Hz":null],["fn",t.fn!=null?fmt(t.fn,0)+" Hz":null],["Chatters",t.bad!=null?nf0.format(t.bad)+" rpm":null],["Stable",t.good!=null?nf0.format(t.good)+" rpm":null],["ap/ae",t.ap]].filter(x=>x[1]!=null&&x[1]!=="").map(([k,v])=>`<span>${esc(k)} <b>${esc(v)}</b></span>`).join("")}</div>
     ${t.notes?`<p>${esc(t.notes)}</p>`:""}
     <div class="btns">
       <button class="btn small" type="button" data-use="${esc(t.id)}">Use on Measure</button>
@@ -1460,16 +1731,20 @@ $("tool-list").addEventListener("click",e=>{
   else if((b=g("delno"))){delId=null;renderTools();}
   else if((b=g("delok"))){tools=tools.filter(x=>x.id!==b.dataset.delok);delId=null;store.set("tools",tools);renderTools();}
   else if((b=g("use"))){const t=tools.find(x=>x.id===b.dataset.use);if(!t)return;
-    if(t.machine&&machines.some(m=>m.id===t.machine))$("in-machine").value=t.machine;
-    if(t.z)$("in-z").value=t.z;if(t.D)$("in-d").value=t.D;if(t.L)$("in-l").value=t.L;if(t.bad||t.good)$("in-rpm").value=t.bad||t.good;
-    $("in-rpm").dispatchEvent(new Event("input"));
+    if(t.machine&&machines.some(m=>m.id===t.machine)){$("in-machine").value=t.machine;syncSpindle();}
+    if(t.z)$("in-z").value=t.z;if(t.D)$("in-d").value=t.D;if(t.L)$("in-l").value=t.L;$("in-lg").value=t.Lg>0?t.Lg:"";
+    for(const [k,id,o] of [["spindle","in-spindle",C.SPINDLES],["htype","in-holder",C.HOLDERS],["mat","in-mat",C.MATERIALS],["strat","in-strat",C.STRATEGIES]])if(t[k]&&o[t[k]])$(id).value=t[k];if(t.bad||t.good)$("in-rpm").value=t.bad||t.good;
+    /* ap / ae text as saved ("0.5 / 4"); otherwise the strategy preset */
+    const apae=String(t.ap||"").split("/").map(x=>parseFloat(String(x).replace(",",".")));
+    if(apae[0]>0){$("in-ap").value=apae[0];if(apae[1]>0)$("in-ae").value=apae[1];aeManual=true;}else{aeManual=false;applyStrategy();}
+    saveInputs();reanalyze();
     if(t.fc||t.fn){S.manualF=t.fc||t.fn;refreshResult();drawSpec();}
     location.hash="#measure";}
 });
 $("btn-totool").addEventListener("click",()=>{
   const i=inputs(),act=activeFreq();if(!act)return;
   editId=null;
-  setForm({machine:i.machine.id,D:isFinite(i.D)?i.D:null,z:i.z,fc:act.kind==="tap"?null:Math.round(act.f),fn:act.kind==="tap"?Math.round(act.f):null,bad:act.kind==="tap"?null:i.rpm,name:"",holder:"",L:isFinite(i.L)&&i.L>0?i.L:null,good:null,ap:"",notes:""});
+  setForm({machine:i.machine.id,D:isFinite(i.D)?i.D:null,z:i.z,fc:act.kind==="tap"?null:Math.round(act.f),fn:act.kind==="tap"?Math.round(act.f):null,bad:act.kind==="tap"?null:i.rpm,name:"",holder:"",L:isFinite(i.L)&&i.L>0?i.L:null,Lg:isFinite(i.Lg)&&i.Lg>0?i.Lg:null,spindle:i.spindle,htype:i.holder,mat:i.mat,strat:i.strat,good:null,ap:(i.ap>0?fmt(i.ap,1):"")+(i.ae>0?" / "+fmt(i.ae,1):""),notes:""});
   $("tool-form-h").textContent="Add tool";$("t-cancel").hidden=true;
   location.hash="#tools";setTimeout(()=>$("t-name").focus(),50);
 });
@@ -1483,9 +1758,11 @@ async function download(name,text,type){
 }
 $("t-export").addEventListener("click",()=>download("chatter-tools.json",JSON.stringify({version:1,machines,tools},null,1),"application/json"));
 $("t-csv").addEventListener("click",()=>{
-  const cols=["name","holder","machine","D","z","L","fc","fn","bad","good","ap","notes"];
-  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
-  download("chatter-tools.csv",[cols.join(",")].concat(tools.map(t=>cols.map(c=>q(c==="machine"?machineName(t.machine):t[c])).join(","))).join("\n"),"text/csv");
+  const cols=["name","holder","machine","spindle","htype","Lg","mat","strat","D","z","L","fc","fn","bad","good","ap","notes"];
+  /* quote every cell; a leading = + - @ would run as a formula in Excel, so it gets a ' prefix */
+  const q=v=>{let x=String(v==null?"":v);if(/^[=+\-@\t\r]/.test(x)&&!/^-?\d/.test(x))x="'"+x;return '"'+x.replace(/"/g,'""')+'"';};
+  const val=(t,c)=>c==="machine"?machineName(t.machine):c==="htype"?(C.HOLDERS[t.htype]?C.HOLDERS[t.htype].name:t.htype):c==="mat"?(C.MATERIALS[t.mat]?C.MATERIALS[t.mat].name:t.mat):c==="strat"?(C.STRATEGIES[t.strat]?C.STRATEGIES[t.strat].name:t.strat):t[c];
+  download("chatter-tools.csv",[cols.join(",")].concat(tools.map(t=>cols.map(c=>q(val(t,c))).join(","))).join("\n"),"text/csv");
 });
 $("t-import").addEventListener("change",async e=>{
   const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
@@ -1505,8 +1782,15 @@ function renderOverhang(){
   const D=num("oh-d"),L1=num("oh-l1"),L2=num("oh-l2"),mat=$("oh-mat").value;
   if(!(D>0&&L1>0&&L2>0)){$("oh-kv").innerHTML="";$("oh-body").innerHTML="";return;}
   const a=C.overhang(D,L1,mat),b=C.overhang(D,L2,mat);
-  $("oh-kv").innerHTML=[["Stiffness new/now",fmt(b.k/a.k*100,0)+" %"],["Natural freq. new/now",fmt(b.fn/a.fn*100,0)+" %"],["fn now → new",fmt(a.fn,0)+" → "+fmt(b.fn,0)+" Hz"],["Stable depth new/now",fmt(b.k/a.k*100,0)+" %"]].map(([k,v])=>`<div><dt>${k}</dt><dd class="hot">${v}</dd></div>`).join("");
-  const rows=[];for(const r of [2,3,4,5,6,8]){const L=r*D,o=C.overhang(D,L,mat);rows.push(`<tr class="${Math.abs(L-L1)<0.5?"cur":Math.abs(L-L2)<0.5?"rec":""}"><td>${r}×D</td><td>${fmt(L,0)}</td><td>${fmt(o.k,o.k<10?2:1)}</td><td>${fmt(o.fn,0)}</td><td>${fmt(o.k/a.k*100,0)} %</td></tr>`);}
+  const i=inputs(),Lh=i.Lg>i.L&&i.L>0?i.Lg-i.L:NaN;
+  const A1=C.assembly({spindle:i.spindle,holder:i.holder,D,L:L1,Lg:isFinite(Lh)?Lh+L1:NaN,Dh:i.Dh}),A2=C.assembly({spindle:i.spindle,holder:i.holder,D,L:L2,Lg:isFinite(Lh)?Lh+L2:NaN,Dh:i.Dh});
+  const asmKv=A1&&A2?[["Whole assembly k now → new",fmt(A1.kTip,1)+" → "+fmt(A2.kTip,1)+" N/µm"],["Stable depth new/now (assembly)",fmt(A2.kTip/A1.kTip*100,0)+" %"],["Tool mode now → new (assembly)",r10(A1.fTool)+" → "+r10(A2.fTool)+" Hz"]]:[];
+  $("oh-kv").innerHTML=asmKv.concat([["Tool alone: stiffness new/now",fmt(b.k/a.k*100,0)+" %"],["Tool alone: fn new/now",fmt(b.fn/a.fn*100,0)+" %"],["Tool alone: fn now → new",fmt(a.fn,0)+" → "+fmt(b.fn,0)+" Hz"]]).map(([k,v])=>`<div><dt>${esc(k)}</dt><dd class="hot">${esc(v)}</dd></div>`).join("");
+  /* table: whole assembly when Setup allows it, else tool alone */
+  const rows=[];for(const r of [2,3,4,5,6,8]){const L=r*D,Ar=A1?C.assembly({spindle:i.spindle,holder:i.holder,D,L,Lg:isFinite(Lh)?Lh+L:NaN,Dh:i.Dh}):null,o=C.overhang(D,L,mat);
+    const k=Ar?Ar.kTip:o.k,fn=Ar?Ar.fTool:o.fn,k0=A1?A1.kTip:a.k;
+    rows.push(`<tr class="${Math.abs(L-L1)<0.5?"cur":Math.abs(L-L2)<0.5?"rec":""}"><td>${r}×D</td><td>${fmt(L,0)}</td><td>${fmt(k,k<10?2:1)}</td><td>${fmt(fn,0)}</td><td>${fmt(k/k0*100,0)} %</td></tr>`);}
+  $("oh-tbl-note").textContent=A1?"Table: whole assembly from Setup, depth relative to the current overhang.":"Table: tool alone (enter spindle and holder in Setup for the whole assembly).";
   $("oh-body").innerHTML=rows.join("");
 }
 for(const id of ["oh-d","oh-l1","oh-l2","oh-mat"])$(id).addEventListener("input",renderOverhang);

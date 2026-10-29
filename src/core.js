@@ -419,7 +419,141 @@ const ChatterCore = (function () {
     return 10 * Math.log10(s + 1e-14);
   }
 
-  return { fft, hann, frameSpectrum, welch, toDb, rmsDb, noiseFloor, findPeaks, classify, analyzeCut,
+  /* ---------- Tool assembly model ----------
+     Static tip compliance of spindle + interface + holder + clamp + tool as a stepped cantilever:
+     a force F at the tip bends every segment with the moment arm to the tip.
+     Values are engineering estimates for comparing setups, not measured data. */
+  const SPINDLES = {
+    /* kr: radial stiffness at the spindle nose N/µm; kth: tilt stiffness of bearings + interface Nm/rad;
+       m: effective spindle mass at the nose kg; body: max. holder body Ø mm; fl/flLen: flange Ø and length mm
+       (the flange sits right in front of the spindle face, inside the gauge length) */
+    "HSK-A100": { kr: 250, kth: 2.5e6, m: 6.0, body: 75, fl: 100, flLen: 28 },
+    "HSK-A63":  { kr: 150, kth: 1.0e6, m: 3.0, body: 50, fl: 63,  flLen: 24 },
+    "HSK-A125": { kr: 320, kth: 4.0e6, m: 8.0, body: 90, fl: 125, flLen: 32 },
+    "SK50/BT50":{ kr: 220, kth: 2.0e6, m: 6.0, body: 70, fl: 97,  flLen: 20 },
+    "SK40/BT40":{ kr: 120, kth: 0.7e6, m: 3.0, body: 50, fl: 63,  flLen: 16 },
+    "Capto C8": { kr: 240, kth: 2.3e6, m: 6.0, body: 70, fl: 80,  flLen: 22 },
+    "Capto C6": { kr: 160, kth: 1.1e6, m: 3.5, body: 50, fl: 63,  flLen: 20 }
+  };
+  /* clamp: extra effective length in multiples of D at the holder face; zeta: typical damping of the assembly;
+     nose: estimated holder front diameter as a function of D; taper: half angle in degrees from the nose toward the spindle */
+  const HOLDERS = {
+    shrink:  { name: "Shrink fit",            clamp: 0.30, zeta: 0.020, taper: 4.5, nose: D => D + 11 },
+    hydro:   { name: "Hydraulic",             clamp: 0.50, zeta: 0.028, taper: 2, nose: D => D + 16 },
+    power:   { name: "Power / milling chuck", clamp: 0.35, zeta: 0.025, taper: 2, nose: D => D + 30 },
+    er:      { name: "Collet ER",             clamp: 1.60, zeta: 0.028, taper: 6, nose: D => Math.max(D + 22, 1.9 * D + 14) },
+    weldon:  { name: "Weldon / side lock",    clamp: 0.80, zeta: 0.025, taper: 0, nose: D => D + 26 },
+    shell:   { name: "Shell mill arbor (face / insert cutter)", clamp: 0.10, zeta: 0.030, taper: 0, nose: D => Math.max(40, 0.5 * D), shell: true },
+    damped:  { name: "Damped holder / extension", clamp: 0.40, zeta: 0.050, taper: 0, nose: D => D + 20 }
+  };
+  /* Ks: specific cutting force N/mm² used as the tangential coefficient in the stability estimate (relative values
+     matter, the absolute level is absorbed by the calibration factor); vc: typical range m/min for coated solid carbide */
+  const MATERIALS = {
+    h13soft: { name: "H13 / 1.2344 soft annealed (~200 HB)", Ks: 2100, vc: [140, 220] },
+    h13_40:  { name: "H13 / 1.2344 at 40 HRC",               Ks: 2600, vc: [90, 160] },
+    h13_48:  { name: "H13 / 1.2344 at 45–50 HRC",            Ks: 3000, vc: [60, 120] },
+    p20:     { name: "P20 / 1.2311 (~30 HRC)",               Ks: 2300, vc: [150, 240] },
+    c45:     { name: "C45 / 1.0503",                         Ks: 2000, vc: [180, 280] },
+    gg25:    { name: "Grey cast iron GG25",                  Ks: 1300, vc: [150, 250] },
+    alu:     { name: "Aluminium alloy",                      Ks: 800,  vc: [300, 1000] }
+  };
+  /* ae and ap as multiples of D; mu: share of the cutting force that drives the bending direction */
+  const STRATEGIES = {
+    hpc:    { name: "HPC (trochoidal, small ae)", ae: 0.10, ap: 1.5,  mu: 0.50 },
+    hdc01:  { name: "HDC ae 0.1×D",               ae: 0.10, ap: 0.5,  mu: 0.55 },
+    hdc02:  { name: "HDC ae 0.2×D",               ae: 0.20, ap: 0.5,  mu: 0.60 },
+    hdc03:  { name: "HDC ae 0.3×D",               ae: 0.30, ap: 0.5,  mu: 0.60 },
+    hdc04:  { name: "HDC ae 0.4×D",               ae: 0.40, ap: 0.5,  mu: 0.60 },
+    hdc05:  { name: "HDC ae 0.5×D",               ae: 0.50, ap: 0.5,  mu: 0.60 },
+    highfeed:{ name: "Highfeed (small ap, axial force)", ae: 0.70, ap: 0.06, mu: 0.25 },
+    custom: { name: "Custom",                     ae: 0.30, ap: 0.5,  mu: 0.60 }
+  };
+
+  /* table lookup that ignores inherited keys such as "constructor" */
+  function own(obj, k) { return Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : null; }
+  /* inp: {spindle, holder, D, L (stick-out), Lg (gauge length from spindle face), Dh (optional holder front Ø)} all mm */
+  function assembly(inp) {
+    const sp = own(SPINDLES, inp.spindle) || SPINDLES["HSK-A100"], h = own(HOLDERS, inp.holder) || HOLDERS.shrink;
+    const D = inp.D, L = inp.L;
+    if (!(D > 0 && L > 0)) return null;
+    /* unknown gauge length: typical holder (shell mill arbors are short stubs) */
+    const Lg = inp.Lg > L ? inp.Lg : L + (h.shell ? 60 : 2.5 * D + 40);
+    const Lh = Lg - L;
+    const Dh = inp.Dh > D || (h.shell && inp.Dh > 0) ? inp.Dh : h.nose(D);
+    const Ec = 600e9, Es = 210e9, rc = 14500, rs = 7850, mm = 1e-3;
+    /* cutting part: fluted length (core about 0.8·D) near the tip, full shank Ø behind it; shell mills: cutter body */
+    const Etool = h.shell ? Es : Ec, rTool = h.shell ? rs : rc;
+    const dFl = (h.shell ? 0.6 : 0.8) * D * mm, dSh = (h.shell ? 0.6 : 1.0) * D * mm;
+    const Lfl = Math.min(L, h.shell ? L : 2.5 * D);
+    const IFl = Math.PI * Math.pow(dFl, 4) / 64, ISh = Math.PI * Math.pow(dSh, 4) / 64;
+    /* bore: the clamped shank (length lc) stiffens the holder front; behind it only a small screw/coolant bore */
+    const dIn = h.shell ? 0 : D * mm, lc = h.shell ? 0 : Math.min(Lh, 3 * D), dBack = h.shell ? 0 : 0.5 * D * mm;
+    /* holder Ø grows from the nose toward the spindle with the taper angle, capped at the body Ø of the interface */
+    const tg = 2 * Math.tan((h.taper || 0) * Math.PI / 180), Dbody = Math.max(sp.body, Dh);
+    const flStart = Lh - Math.min(sp.flLen, 0.5 * Lh);
+    const dAt = u => (u >= flStart ? Math.max(sp.fl, Dh) : Math.min(Dbody, Dh + tg * u)) * mm;   /* u = mm from the nose */
+    const Lm = L * mm, Lgm = Lg * mm, Lhm = Lh * mm;
+    /* compliances in m/N for a unit force at the tip: integral of arm² / (E I) along the beam */
+    const cSpindle = 1 / (sp.kr * 1e6) + Lgm * Lgm / sp.kth;
+    const NS = 40;
+    let cHolder = 0, cBaseH = 0, mHolderBody = 0;
+    for (let i = 0; i < NS; i++) {
+      const u = (i + 0.5) / NS * Lh, du = Lh / NS * mm, d = dAt(u), inClamp = u < lc, b = inClamp ? dIn : dBack;
+      /* bending stiffness E·I of the holder wall, plus the clamped tool shank inside it */
+      const EI = Es * Math.PI * (Math.pow(d, 4) - Math.pow(b, 4)) / 64 + (inClamp ? Etool * Math.PI * Math.pow(dIn, 4) / 64 : 0);
+      const arm = (L + u) * mm, armBase = u * mm;
+      cHolder += arm * arm * du / EI;
+      cBaseH += armBase * armBase * du / EI;
+      mHolderBody += rs * Math.PI * (d * d - b * b) / 4 * du;
+    }
+    const lf = Lfl * mm;
+    const cTool = Math.pow(lf, 3) / (3 * Etool * IFl) + (Math.pow(Lm, 3) - Math.pow(lf, 3)) / (3 * Etool * ISh);
+    const cClamp = Lm * Lm * (h.clamp * D * mm) / (Etool * ISh);
+    const cTot = cSpindle + cHolder + cClamp + cTool;
+    const kTip = 1 / cTot / 1e6;                              /* N/µm */
+    /* masses */
+    const mTool = rTool * Math.PI / 4 * (dFl * dFl * lf + dSh * dSh * (Lm - lf));
+    const mHolder = mHolderBody + rTool * Math.PI * dIn * dIn / 4 * lc * mm;
+    /* Two modes. Tool mode: tool mass (cantilever equivalent 0.236·m) on the whole tip compliance.
+       Spindle/holder mode: spindle, holder and tool mass on the compliance at the holder nose. */
+    const fTool = Math.sqrt(1 / cTot / (0.236 * mTool)) / (2 * Math.PI);
+    const cBase = 1 / (sp.kr * 1e6) + Lhm * Lhm / sp.kth + cBaseH;
+    const fBase = Math.sqrt(1 / cBase / (sp.m + mHolder + mTool)) / (2 * Math.PI);
+    const flexTool = cTool + cClamp, flexBase = cSpindle + cHolder;
+    const dominant = flexTool >= flexBase ? "tool" : "base";
+    return { Lg, Lh, Dh, kTip, fTool, fBase, fn: dominant === "tool" ? fTool : fBase, dominant, zeta: h.zeta, mTool, mHolder,
+      share: { spindle: cSpindle / cTot, holder: cHolder / cTot, clamp: cClamp / cTot, tool: cTool / cTot }, guessedLg: !(inp.Lg > L),
+      shell: !!h.shell, flLen: sp.flLen };
+  }
+  /* Worst-case stable depth of cut over all speeds (1 DOF, average directional factor). k in N/µm, Ks N/mm². */
+  function stableDepth(k, zeta, Ks, mu, z, aeD) {
+    const phi = Math.acos(1 - 2 * Math.min(1, Math.max(0.001, aeD)));
+    const ze = Math.max(z * phi / (2 * Math.PI), 0.15);
+    return { aLim: 2 * k * 1000 * zeta * (1 + zeta) / (Ks * mu * ze), ze, phiDeg: phi * 180 / Math.PI };
+  }
+  /* Maximum chip thickness with radial chip thinning (ae < D/2) */
+  function chipThickness(fz, aeD) {
+    const a = Math.min(1, Math.max(0, aeD));
+    return a >= 0.5 ? fz : fz * 2 * Math.sqrt(a * (1 - a));
+  }
+  function vcStatus(matKey, vc) {
+    const m = own(MATERIALS, matKey);
+    if (!m || !(vc > 0)) return null;
+    return { lo: m.vc[0], hi: m.vc[1], status: vc < m.vc[0] * 0.9 ? "low" : vc > m.vc[1] * 1.1 ? "high" : "ok" };
+  }
+  /* Which part of the assembly does a measured frequency belong to? */
+  function sourceOf(f, asm) {
+    if (!asm || !(f > 0)) return null;
+    const inT = f >= 0.6 * asm.fTool && f <= 1.35 * asm.fTool, inB = f >= 0.55 * asm.fBase && f <= 1.5 * asm.fBase;
+    if (inT && inB) return Math.abs(Math.log(f / asm.fTool)) < Math.abs(Math.log(f / asm.fBase)) ? "tool" : "base";
+    if (inT) return "tool";
+    if (inB) return "base";
+    if (f < 0.55 * Math.min(asm.fTool, asm.fBase)) return "below";
+    return f > 1.35 * Math.max(asm.fTool, asm.fBase) ? "above" : "between";
+  }
+
+  return { SPINDLES, HOLDERS, MATERIALS, STRATEGIES, assembly, stableDepth, chipThickness, vcStatus, sourceOf,
+    fft, hann, frameSpectrum, welch, toDb, rmsDb, noiseFloor, findPeaks, classify, analyzeCut,
     suggestSpeeds, phaseInfo, pickRecommendations, cuttingSpeed, scaleFeed, overhang,
     detectTaps, tapSpectrum, TAP_SKIP, analyzeTap, compress, levelAt, bandEnergyDb, refineComb };
 })();

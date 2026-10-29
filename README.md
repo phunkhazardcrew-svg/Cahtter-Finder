@@ -11,6 +11,12 @@ Phone web app for CNC milling: listen to the cut, find the chatter frequency, ge
 6. **Tap test:** spindle stopped, tap the cutting edge 5–10 times; the app averages the ring-downs and gives the tool natural frequency fn and a damping estimate.
 7. No live microphone (embedded preview, blocked)? Record with the voice memo app and use *Load recording*.
 
+## Setup check (no measurement needed)
+Spindle interface, holder type, total length, stick-out, material and strategy give an estimate of tip stiffness,
+the tool mode and the spindle/holder mode, where the deflection comes from, and how deep you can cut:
+"stable at any speed" and "in a good speed pocket". The depth uses an empirical factor (default 12) that you can
+calibrate with one cut you know is at the limit. Expect ±30–50 %; use it to compare setups.
+
 ## Tabs
 - **Measure** – live spectrum, verdict, stable speeds, new feed.
 - **Compare** – overlay two snapshots, level change at the chatter frequency.

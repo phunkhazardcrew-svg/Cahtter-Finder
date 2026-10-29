@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 – 2026-10-28
+- Setup: spindle interface (HSK-A100 default, per machine profile), holder type (shrink, hydraulic, power chuck,
+  ER, Weldon, shell mill arbor, damped), total length and stick-out, optional holder front Ø.
+- Cut: material (H13 soft, H13 40 HRC, H13 45–50 HRC, P20, C45, GG25, aluminium) and strategy presets
+  (HPC, HDC ae 0.1–0.5×D, Highfeed) with editable ae/ap.
+- Setup check: beam model of spindle + interface + tapered holder + clamping + tool → tip stiffness, tool mode,
+  spindle/holder mode, compliance shares, damping, worst-case and in-pocket stable depth (empirical factor 12,
+  calibratable from a known cut), vc range and chip-thinning warnings, biggest lever.
+- Measured chatter frequency is assigned to tool mode, spindle/holder mode or workpiece/fixture.
+- Speed table flags vc outside the material range. Tool list stores the whole setup; CSV export guarded.
+- Fix guide overhang calculator compares whole-assembly stiffness.
+
 ## 1.1.0 – 2026-10-28
 - Setup: optional overhang L (holder face to tool tip).
 - Result: L/D and estimated tool bending range (cantilever, 50–100 % of the solid-shank value). The measured
