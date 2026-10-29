@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1114">
+<link rel="manifest" href="manifest.webmanifest">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>Chatter Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Find milling chatter frequency with your phone microphone and get stable spindle speeds.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: shop-floor instrument. One dark theme on purpose (readable next to the machine, saves battery).
+   Sticky tab bar, one view at a time, cards stack on phones. */
+:root{
+  --bg:#0e1114;
+  --panel:#161b20;
+  --panel-2:#1d242b;
+  --line:#2a333c;
+  --ink:#e8ecef;
+  --dim:#9aa6b1;
+  --faint:#808c97;
+  --amber:#ffb627;
+  --amber-ink:#1a1204;
+  --cyan:#5cc8e8;
+  --red:#ff5a4a;
+  --green:#4cc38a;
+  --violet:#b49cff;
+  --f-display:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:clamp(1.9rem,6vw,2.8rem);line-height:1;text-transform:uppercase}
+h1 span{color:var(--amber)}
+h2{font-size:1.45rem;line-height:1.1}
+h3{font-size:1.12rem;line-height:1.2}
+p{margin:0}
+a{color:var(--amber)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.dim{color:var(--dim)}
+.small{font-size:.84rem}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
+
+header.top{padding-block:18px 10px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:6px 18px}
+header.top p{color:var(--dim);font-size:.92rem;max-width:56ch}
+
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:rgba(14,17,20,.95);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-block:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-block:6px}
+nav.tabs .wrap::-webkit-scrollbar{display:none}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--dim);font-family:var(--f-display);font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:7px 12px;border-radius:6px;min-height:44px;display:inline-flex;align-items:center}
+nav.tabs a[aria-current="page"]{color:var(--amber-ink);background:var(--amber)}
+nav.tabs a:hover:not([aria-current="page"]){color:var(--ink);background:var(--panel-2)}
+
+main{padding-block:16px 60px}
+section.view{display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px;min-width:0}
+.card > h2,.card > h3{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card h2 small,.card h3 small{font-family:var(--f-body);font-size:.8rem;font-weight:500;color:var(--faint);letter-spacing:0}
+.grid2{display:grid;gap:14px}
+@media (min-width:900px){.grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid2.wide-left{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}}
+
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 12px;align-items:start}
+.fields.wide{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.field{display:grid;gap:3px;min-width:0;align-content:start}
+.field label,.lbl{font-size:.76rem;color:var(--dim);letter-spacing:.03em;text-transform:uppercase}
+.field input,.field select,.field textarea{width:100%;font:500 1.05rem var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:9px 10px;min-height:44px}
+.field textarea{font:400 .95rem var(--f-body);min-height:70px;resize:vertical}
+.field select{font-family:var(--f-body)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--amber);outline:none}
+.field .hint{font-size:.74rem;color:var(--faint)}
+.field.big input{font-size:1.4rem;color:var(--amber)}
+
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:600 .95rem var(--f-body);color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn:hover{border-color:var(--dim)}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:var(--amber-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--red);border-color:rgba(255,90,74,.45)}
+.btn.small{min-height:44px;padding:6px 12px;font-size:.88rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn .dot{width:10px;height:10px;border-radius:50%;background:currentColor}
+.btn.rec .dot{background:var(--red);box-shadow:0 0 0 0 rgba(255,90,74,.6);animation:pulse 1.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,90,74,.55)}70%{box-shadow:0 0 0 9px rgba(255,90,74,0)}100%{box-shadow:0 0 0 0 rgba(255,90,74,0)}}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+input[type=file]:focus-visible + label{outline:2px solid var(--amber);outline-offset:2px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:600 .9rem var(--f-body);color:var(--dim);background:var(--panel-2);border:0;border-right:1px solid var(--line);padding:9px 13px;min-height:44px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{color:var(--amber-ink);background:var(--amber)}
+
+.status{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:.88rem;color:var(--dim)}
+.meter{flex:1 1 160px;max-width:300px;height:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--amber) 75%,var(--red))}
+.note{font-size:.86rem;color:var(--dim);border-left:3px solid var(--amber);padding:4px 0 4px 10px}
+.note.warn{border-left-color:var(--red);color:#ffc2bb}
+.note.ok{border-left-color:var(--green)}
+
+.spec-box{position:relative;background:#090b0d;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#spec,#cmp{display:block;width:100%;height:clamp(240px,42vh,380px);touch-action:pan-y;cursor:crosshair}
+#cmp{cursor:default}
+.spec-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.78rem;color:var(--dim)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:1px}
+
+.verdict{display:grid;gap:6px}
+.pill{display:inline-block;font:700 .78rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;background:var(--panel-2);color:var(--dim);width:fit-content}
+.pill.chatter{background:var(--red);color:#1d0503}
+.pill.possible{background:var(--amber);color:var(--amber-ink)}
+.pill.forced,.pill.clean{background:var(--green);color:#03170d}
+.pill.manual{background:var(--violet);color:#120a2a}
+.bigf{font:600 clamp(2.4rem,9vw,3.4rem) var(--f-display);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.bigf small{font-size:.45em;color:var(--dim);margin-left:4px}
+.conf{height:6px;background:var(--panel-2);border-radius:3px;overflow:hidden;max-width:260px}
+.conf i{display:block;height:100%;background:var(--amber)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 .82rem var(--f-mono);color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;min-height:44px}
+.chip:hover{border-color:var(--amber)}
+.chip .t{color:var(--faint);margin-left:4px;font-family:var(--f-body)}
+
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:0}
+.kv div{background:var(--panel-2);padding:8px 10px;display:grid;gap:1px;min-width:0}
+.kv dt{font-size:.72rem;color:var(--dim)}
+.kv dd{margin:0;font:500 1rem var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kv dd.hot{color:var(--amber)}
+
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:.72rem;color:var(--dim);font-weight:600;letter-spacing:.04em;text-transform:uppercase;background:var(--panel-2)}
+td{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tr.rec td{color:var(--amber)}
+tr.cur td{color:var(--dim)}
+td .tag{font-family:var(--f-body);font-size:.72rem;color:var(--amber-ink);background:var(--amber);padding:1px 6px;border-radius:3px;margin-left:6px}
+td .tag.alt{background:var(--panel);color:var(--dim);border:1px solid var(--line)}
+
+.steps{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start}
+.steps li::before{counter-increment:s;content:counter(s);width:26px;height:26px;border-radius:50%;border:1px solid var(--amber);color:var(--amber);display:grid;place-items:center;font:600 .8rem var(--f-mono)}
+.steps b{font-weight:600}
+.steps span{display:block;color:var(--dim);font-size:.9rem}
+
+.bands{display:grid;gap:8px}
+.band{display:grid;grid-template-columns:minmax(92px,auto) minmax(0,1fr);gap:4px 14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2)}
+.band.on{border-color:var(--amber);box-shadow:inset 3px 0 0 var(--amber)}
+.band .r{font:600 1rem var(--f-mono);color:var(--amber)}
+.band .w{font-weight:600}
+.band .d{grid-column:2;color:var(--dim);font-size:.9rem}
+@media (max-width:520px){.band{grid-template-columns:minmax(0,1fr)}.band .d{grid-column:1}}
+
+.toollist{display:grid;gap:10px}
+.tool{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--panel-2);display:grid;gap:8px}
+.tool h3{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tool .meta{display:flex;flex-wrap:wrap;gap:4px 14px;font:500 .86rem var(--f-mono);color:var(--dim)}
+.tool .meta b{color:var(--ink);font-weight:500}
+.tool p{color:var(--dim);font-size:.9rem}
+.empty{color:var(--faint);font-size:.92rem;padding:10px 0}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.88rem;color:#ffc2bb}
+
+.mtable input{width:100%;min-width:90px;font:500 .95rem var(--f-mono);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 8px;min-height:44px}
+.mtable td{padding:6px}
+.mtable input{min-width:80px}
+.mtable input[type=number]{min-width:76px}
+.mtable .btn{min-width:44px;justify-content:center}
+@media (max-width:480px){nav.tabs a{padding:7px 8px;font-size:1rem;letter-spacing:.02em}th,td{padding:9px 7px}.mtable td{padding:4px}}
+footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px solid var(--line)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.btn.rec .dot{animation:none}}
+</style>
+
+<header class="wrap top">
+  <h1>Chatter <span>Finder</span></h1>
+  <p>Listen to the cut with your phone, find the chatter frequency, and get spindle speeds that put the next tooth in phase with the wave.</p>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap">
+    <a href="#measure" data-tab="measure">Measure</a>
+    <a href="#compare" data-tab="compare">Compare</a>
+    <a href="#tools" data-tab="tools">Tool list</a>
+    <a href="#fix" data-tab="fix">Fix guide</a>
+    <a href="#machines" data-tab="machines">Machines</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ================= MEASURE ================= -->
+<section class="view" id="v-measure" data-view="measure">
+  <div class="card">
+    <h2>Setup <small>enter what the machine is running right now</small></h2>
+    <div class="fields">
+      <div class="field"><label for="in-machine">Machine</label><select id="in-machine"></select></div>
+      <div class="field big"><label for="in-rpm">Spindle speed n (rpm)</label><input id="in-rpm" type="number" inputmode="numeric" min="1" step="10" value="8000"><span class="hint">Actual speed, override included</span></div>
+      <div class="field big"><label for="in-z">Teeth z</label><input id="in-z" type="number" inputmode="numeric" min="1" max="40" step="1" value="4"></div>
+      <div class="field"><label for="in-d">Tool Ø D (mm)</label><input id="in-d" type="number" inputmode="decimal" min="0.1" step="0.1" value="16"></div>
+      <div class="field"><label for="in-f">Feed F (mm/min)</label><input id="in-f" type="number" inputmode="numeric" min="0" step="10" placeholder="optional"></div>
+      <div class="field"><label for="in-toolmax">Tool max rpm</label><input id="in-toolmax" type="number" inputmode="numeric" min="0" step="100" placeholder="optional"></div>
+    </div>
+    <div class="btns">
+      <div class="seg" role="group" aria-label="Measurement mode">
+        <button id="mode-cut" type="button" aria-pressed="true">Cutting sound</button>
+        <button id="mode-tap" type="button" aria-pressed="false">Tap test</button>
+      </div>
+    </div>
+    <p class="note small" id="mode-help">Hold the phone 20–50 cm from the cut, microphone toward the spindle, while the tool is chattering. Then press <b>Capture 3 s</b>.</p>
+  </div>
+
+  <div class="card">
+    <div class="btns">
+      <button class="btn primary" id="btn-mic" type="button"><span class="dot"></span><span id="btn-mic-t">Start microphone</span></button>
+      <button class="btn" id="btn-capture" type="button" disabled>Capture 3 s</button>
+      <button class="btn" id="btn-live" type="button" hidden>Back to live</button>
+      <input id="in-file" type="file" accept="audio/*,video/*,.wav,.m4a,.mp3,.aac,.ogg,.webm"><label class="btn" for="in-file">Load recording</label>
+      <button class="btn small" id="btn-taps-reset" type="button" hidden>Reset taps</button>
+    </div>
+    <div class="status"><span id="st-text">Microphone off.</span><div class="meter" aria-hidden="true"><i id="st-meter"></i></div><span class="mono" id="st-level"></span></div>
+    <p class="note warn" id="mic-error" hidden></p>
+    <div class="spec-tools">
+      <div class="seg" role="group" aria-label="Frequency range" id="range-seg">
+        <button type="button" data-r="2000" aria-pressed="false">2 kHz</button>
+        <button type="button" data-r="5000" aria-pressed="true">5 kHz</button>
+        <button type="button" data-r="10000" aria-pressed="false">10 kHz</button>
+        <button type="button" data-r="20000" aria-pressed="false">20 kHz</button>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--cyan)"></i>spectrum</span>
+        <span><i style="background:var(--amber)"></i>tooth-pass harmonics</span>
+        <span><i style="background:var(--red)"></i>chatter</span>
+      </div>
+    </div>
+    <div class="spec-box"><canvas id="spec" role="img" aria-label="Sound spectrum of the cut. Tap a peak to select it as chatter frequency."></canvas></div>
+    <p class="small dim">Tap a peak in the spectrum to override the automatic pick.</p>
+  </div>
+
+  <div class="grid2 wide-left">
+    <div class="card" id="res-card">
+      <h2>Result <small id="res-src">waiting for sound</small></h2>
+      <div class="verdict">
+        <span class="pill" id="res-pill">no data</span>
+        <div class="bigf" id="res-f">– <small>Hz</small></div>
+        <div class="conf" aria-hidden="true"><i id="res-conf"></i></div>
+        <p class="small dim" id="res-text">Start the microphone or load a recording.</p>
+      </div>
+      <dl class="kv" id="res-kv"></dl>
+      <div><span class="lbl">Other peaks (tap to use)</span><div class="chips" id="res-chips"></div></div>
+      <div class="btns">
+        <button class="btn small" id="btn-auto" type="button" hidden>Use automatic pick</button>
+        <button class="btn small" id="btn-snap" type="button" disabled>Save snapshot for compare</button>
+        <button class="btn small" id="btn-totool" type="button" disabled>Save to tool list</button>
+      </div>
+      <p class="small" id="snap-msg" role="status"></p>
+    </div>
+    <div class="card">
+      <h2>Stable speeds <small id="sp-range"></small></h2>
+      <p class="small dim" id="sp-intro">Speeds where the tooth-pass frequency is fc/(N+1). Each tooth then meets the wave left by the previous tooth in phase.</p>
+      <div class="table-scroll"><table><thead><tr><th>Pocket N</th><th>n (rpm)</th><th>Change</th><th>vc (m/min)</th><th>F new</th></tr></thead><tbody id="sp-body"><tr><td colspan="5" class="empty">No chatter frequency yet.</td></tr></tbody></table></div>
+      <p class="note" id="sp-advice" hidden></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= COMPARE ================= -->
+<section class="view" id="v-compare" data-view="compare" hidden>
+  <div class="card">
+    <h2>Before / after <small>snapshots stay on this phone</small></h2>
+    <div class="fields wide">
+      <div class="field"><label for="cmp-a">A (before)</label><select id="cmp-a"></select></div>
+      <div class="field"><label for="cmp-b">B (after)</label><select id="cmp-b"></select></div>
+    </div>
+    <div class="spec-box"><canvas id="cmp" role="img" aria-label="Two spectra overlaid"></canvas></div>
+    <div class="legend"><span><i style="background:var(--faint)"></i>A before</span><span><i style="background:var(--cyan)"></i>B after</span><span><i style="background:var(--red)"></i>chatter frequency of A</span></div>
+    <dl class="kv" id="cmp-kv"></dl>
+    <p class="note" id="cmp-verdict" hidden></p>
+  </div>
+  <div class="card">
+    <h3>Saved snapshots</h3>
+    <div id="snap-list" class="toollist"></div>
+  </div>
+</section>
+
+<!-- ================= TOOLS ================= -->
+<section class="view" id="v-tools" data-view="tools" hidden>
+  <div class="card" id="tool-form-card">
+    <h2 id="tool-form-h">Add tool</h2>
+    <form id="tool-form" class="fields" autocomplete="off">
+      <div class="field" style="grid-column:1/-1"><label for="t-name">Tool / ID</label><input id="t-name" type="text" required placeholder="e.g. T12 Ø16 R0.8 VHM"></div>
+      <div class="field"><label for="t-holder">Holder</label><input id="t-holder" type="text" placeholder="Shrink / Hydro / ..."></div>
+      <div class="field"><label for="t-machine">Machine</label><select id="t-machine"></select></div>
+      <div class="field"><label for="t-d">Ø D (mm)</label><input id="t-d" type="number" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label for="t-z">Teeth z</label><input id="t-z" type="number" step="1" inputmode="numeric"></div>
+      <div class="field"><label for="t-l">Overhang L (mm)</label><input id="t-l" type="number" step="0.5" inputmode="decimal"></div>
+      <div class="field"><label for="t-fc">Chatter f (Hz)</label><input id="t-fc" type="number" step="1" inputmode="decimal"></div>
+      <div class="field"><label for="t-fn">Tap test fn (Hz)</label><input id="t-fn" type="number" step="1" inputmode="decimal"></div>
+      <div class="field"><label for="t-bad">Chatters at (rpm)</label><input id="t-bad" type="number" step="10" inputmode="numeric"></div>
+      <div class="field"><label for="t-good">Stable at (rpm)</label><input id="t-good" type="number" step="10" inputmode="numeric"></div>
+      <div class="field"><label for="t-ap">ap / ae (mm)</label><input id="t-ap" type="text" placeholder="e.g. 0.5 / 4"></div>
+      <div class="field" style="grid-column:1/-1"><label for="t-notes">Notes</label><textarea id="t-notes" placeholder="Material, strategy, what worked"></textarea></div>
+      <div class="btns" style="grid-column:1/-1">
+        <button class="btn primary" type="submit" id="t-save">Save tool</button>
+        <button class="btn" type="button" id="t-cancel" hidden>Cancel edit</button>
+      </div>
+    </form>
+  </div>
+  <div class="card">
+    <h3>Saved tools <small id="tool-count"></small></h3>
+    <div class="field"><label for="t-search">Search</label><input id="t-search" type="search" placeholder="Name, holder, machine, notes"></div>
+    <div id="tool-list" class="toollist"></div>
+    <div class="btns">
+      <button class="btn small" id="t-export" type="button">Export JSON</button>
+      <button class="btn small" id="t-csv" type="button">Export CSV</button>
+      <input id="t-import" type="file" accept=".json,application/json"><label class="btn small" for="t-import">Import JSON</label>
+    </div>
+    <p class="small" id="t-msg" role="status"></p>
+  </div>
+</section>
+
+<!-- ================= FIX GUIDE ================= -->
+<section class="view" id="v-fix" data-view="fix" hidden>
+  <div class="card">
+    <h2>Where does it come from? <small id="fix-fc">no frequency measured yet</small></h2>
+    <p class="small dim">The chatter frequency tells you which part of the system is vibrating. The highlighted band matches your last measurement.</p>
+    <div class="bands" id="bands">
+      <div class="band" data-lo="0" data-hi="100"><span class="r">&lt; 100 Hz</span><span class="w">Machine structure, workpiece, fixture</span><span class="d">Large, soft parts move: column, table, thin plates on the magnetic chuck, long clamping towers. Speed changes help little because the pockets are very dense. Stiffen the setup, support thin walls, reduce ae. This is the only range where Heidenhain ACC (option 145) can act, because it works through the feed drives.</span></div>
+      <div class="band" data-lo="100" data-hi="600"><span class="r">100–600 Hz</span><span class="w">Spindle, heavy holders, large cutters</span><span class="d">Face mills, insert cutters and long extensions on the spindle bearings. Speed tuning works when the tooth-pass frequency is close to fc (low pockets). Otherwise reduce ap, use a stiffer or shorter holder.</span></div>
+      <div class="band" data-lo="600" data-hi="5000"><span class="r">600 Hz – 5 kHz</span><span class="w">Tool and holder bending</span><span class="d">The typical case for end mills and ball mills with long overhang. Speed tuning works best here. Shorter overhang raises fn with 1/L² and stiffness with 1/L³.</span></div>
+      <div class="band" data-lo="5000" data-hi="1e9"><span class="r">&gt; 5 kHz</span><span class="w">Small tools, cutting edge, thin walls</span><span class="d">Often squealing from rubbing: feed per tooth too low or a worn edge. Check fz first, then edge prep and tool wear. Thin ribs in the mould can also ring here.</span></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>What to try, in this order</h2>
+      <ol class="steps">
+        <li><div><b>Spindle speed to a pocket</b><span>Measure fc, pick the nearest pocket from the table, cut again and re-measure. fc moves a little with the speed, so one or two iterations are normal.</span></div></li>
+        <li><div><b>Feed per tooth not too small</b><span>Below roughly 0.02–0.03 mm (more for honed inserts) the edge rubs instead of cutting, which produces high squeal. At small ae the real chip is thinner than fz, so rubbing starts earlier. Keep fz when you change n: F scales with n.</span></div></li>
+        <li><div><b>Less radial engagement ae</b><span>Fewer teeth in the cut raise the stability limit. Trochoidal and HPC strategies use small ae with large ap.</span></div></li>
+        <li><div><b>Shorter overhang</b><span>Use the overhang calculator. Every mm counts with the third power.</span></div></li>
+        <li><div><b>Holder</b><span>Shrink fit: stiffest. Hydraulic: softer but damps better. For long reach consider a damped extension.</span></div></li>
+        <li><div><b>Variable pitch or helix cutter</b><span>Unequal tooth spacing breaks the phase between teeth for a whole frequency band.</span></div></li>
+        <li><div><b>Workpiece and fixture</b><span>Support thin walls, add clamping points, check the magnetic plate contact and pole coverage.</span></div></li>
+        <li><div><b>ACC (only below about 100 Hz)</b><span>Set column ACC = Y for the tool in the tool table if option 145 is enabled. Ask the machine builder about axis tuning.</span></div></li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>Overhang calculator</h2>
+      <div class="fields">
+        <div class="field"><label for="oh-d">Ø D (mm)</label><input id="oh-d" type="number" step="0.5" value="16" inputmode="decimal"></div>
+        <div class="field"><label for="oh-mat">Shank</label><select id="oh-mat"><option value="carbide">Carbide</option><option value="steel">Steel</option></select></div>
+        <div class="field"><label for="oh-l1">Overhang now (mm)</label><input id="oh-l1" type="number" step="1" value="80" inputmode="decimal"></div>
+        <div class="field"><label for="oh-l2">Overhang new (mm)</label><input id="oh-l2" type="number" step="1" value="60" inputmode="decimal"></div>
+      </div>
+      <dl class="kv" id="oh-kv"></dl>
+      <div class="table-scroll"><table><thead><tr><th>L/D</th><th>L (mm)</th><th>k (N/µm)</th><th>fn (Hz)</th><th>Depth vs now</th></tr></thead><tbody id="oh-body"></tbody></table></div>
+      <p class="small dim">Solid cantilever with core Ø 0.8·D, holder and spindle rigid. Real values are lower, but the ratios between two overhangs are reliable: k ∝ 1/L³, fn ∝ 1/L², limiting depth ∝ k.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Feed per tooth check</h2>
+    <div class="fields">
+      <div class="field"><label for="fz-f">Feed F (mm/min)</label><input id="fz-f" type="number" step="10" value="2400" inputmode="numeric"></div>
+      <div class="field"><label for="fz-n">n (rpm)</label><input id="fz-n" type="number" step="10" value="8000" inputmode="numeric"></div>
+      <div class="field"><label for="fz-z">Teeth z</label><input id="fz-z" type="number" step="1" value="4" inputmode="numeric"></div>
+    </div>
+    <dl class="kv" id="fz-kv"></dl>
+  </div>
+</section>
+
+<!-- ================= MACHINES ================= -->
+<section class="view" id="v-machines" data-view="machines" hidden>
+  <div class="card">
+    <h2>Machine profiles <small>speed limits for the suggestions</small></h2>
+    <p class="note warn small">The default limits are placeholders. Check the spindle data plate or machine documentation and correct them.</p>
+    <div class="table-scroll"><table class="mtable"><thead><tr><th>Name</th><th>n min</th><th>n max</th><th></th></tr></thead><tbody id="m-body"></tbody></table></div>
+    <div class="btns">
+      <button class="btn small" id="m-add" type="button">Add machine</button>
+      <button class="btn small" id="m-reset" type="button">Restore defaults</button>
+    </div>
+    <p class="small" id="m-msg" role="status"></p>
+  </div>
+  <div class="card">
+    <h2>Analysis settings</h2>
+    <div class="fields">
+      <div class="field"><label for="set-mains">Mains frequency</label><select id="set-mains"><option value="60">60 Hz (US)</option><option value="50">50 Hz (EU)</option><option value="0">Ignore</option></select></div>
+      <div class="field"><label for="set-fmin">Ignore below (Hz)</label><input id="set-fmin" type="number" step="5" value="40" inputmode="numeric"></div>
+    </div>
+    <p class="small dim">Mains hum peaks are labelled and never picked as chatter. Very low frequencies are mostly handling noise.</p>
+  </div>
+  <div class="card">
+    <h2>How the analysis works</h2>
+    <ol class="steps">
+      <li><div><b>Spectrum</b><span>32 768-point FFT with Hann window, about 1.5 Hz resolution, averaged over the capture.</span></div></li>
+      <li><div><b>Peaks</b><span>Local maxima at least 8 dB above a running noise floor.</span></div></li>
+      <li><div><b>Harmonics removed</b><span>Peaks at multiples of the tooth-pass frequency n·z/60 or the spindle frequency n/60 are forced vibration, not chatter.</span></div></li>
+      <li><div><b>Chatter</b><span>The strongest remaining peak. Sidebands at fc ± tooth-pass frequency raise the confidence.</span></div></li>
+      <li><div><b>Speeds</b><span>n = 60·fc / (z·(N+1)). Phone microphones are not calibrated, so levels are relative; frequencies are accurate.</span></div></li>
+    </ol>
+  </div>
+</section>
+</main>
+
+<footer class="wrap">Chatter Finder · Single-degree-of-freedom rules of thumb, no guarantee. Always start new speeds carefully and watch the machine. Data is stored only in this browser.</footer>
+
+<script>
+/* ChatterCore: pure signal processing and machining math. No DOM access.
+   Units: Hz, rpm, mm, mm/min, m/min. Spectra are one-sided power arrays (length N/2+1). */
+const ChatterCore = (function () {
+  "use strict";
+
+  /* ---------- FFT (radix-2, in place) ---------- */
+  const fftCache = new Map();
+  function fftTables(n) {
+    let t = fftCache.get(n);
+    if (t) return t;
+    const lev = Math.round(Math.log2(n));
+    if (1 << lev !== n) throw new Error("FFT size must be a power of two");
+    const rev = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+      let r = 0, x = i;
+      for (let b = 0; b < lev; b++) { r = (r << 1) | (x & 1); x >>= 1; }
+      rev[i] = r;
+    }
+    const cos = new Float64Array(n / 2), sin = new Float64Array(n / 2);
+    for (let i = 0; i < n / 2; i++) { cos[i] = Math.cos(2 * Math.PI * i / n); sin[i] = Math.sin(2 * Math.PI * i / n); }
+    t = { rev, cos, sin };
+    fftCache.set(n, t);
+    return t;
+  }
+  function fft(re, im) {
+    const n = re.length, { rev, cos, sin } = fftTables(n);
+    for (let i = 0; i < n; i++) {
+      const j = rev[i];
+      if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+    }
+    for (let size = 2; size <= n; size <<= 1) {
+      const half = size >> 1, step = n / size;
+      for (let i = 0; i < n; i += size) {
+        for (let j = 0, k = 0; j < half; j++, k += step) {
+          const p = i + j, q = p + half, wr = cos[k], wi = -sin[k];
+          const tr = re[q] * wr - im[q] * wi, ti = re[q] * wi + im[q] * wr;
+          re[q] = re[p] - tr; im[q] = im[p] - ti; re[p] += tr; im[p] += ti;
+        }
+      }
+    }
+  }
+
+  /* ---------- Windows and spectra ---------- */
+  const hannCache = new Map();
+  function hann(n) {
+    let w = hannCache.get(n);
+    if (w) return w;
+    w = new Float64Array(n);
+    for (let i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1));
+    hannCache.set(n, w);
+    return w;
+  }
+  /* Power spectrum of one Hann-windowed frame. Scaled so a full-scale sine reads about 0 dB. */
+  function frameSpectrum(x, n) {
+    const w = hann(n), re = new Float64Array(n), im = new Float64Array(n);
+    let ws = 0;
+    for (let i = 0; i < n; i++) { re[i] = (x[i] || 0) * w[i]; ws += w[i]; }
+    fft(re, im);
+    const half = n / 2, P = new Float64Array(half + 1), s = 4 / (ws * ws);
+    for (let k = 0; k <= half; k++) P[k] = (re[k] * re[k] + im[k] * im[k]) * s;
+    return P;
+  }
+  /* Welch average over a whole recording (50 % overlap). */
+  function welch(samples, n) {
+    const hop = n / 2;
+    let acc = null, cnt = 0;
+    if (samples.length < n) {
+      const pad = new Float32Array(n); pad.set(samples);
+      return frameSpectrum(pad, n);
+    }
+    for (let s = 0; s + n <= samples.length; s += hop) {
+      const P = frameSpectrum(samples.subarray(s, s + n), n);
+      if (!acc) acc = P; else for (let k = 0; k < P.length; k++) acc[k] += P[k];
+      cnt++;
+    }
+    for (let k = 0; k < acc.length; k++) acc[k] /= cnt;
+    return acc;
+  }
+  function toDb(P) {
+    const d = new Float32Array(P.length);
+    for (let k = 0; k < P.length; k++) d[k] = 10 * Math.log10(P[k] + 1e-14);
+    return d;
+  }
+  function rmsDb(x) {
+    let s = 0;
+    for (let i = 0; i < x.length; i++) s += x[i] * x[i];
+    return 10 * Math.log10(s / Math.max(1, x.length) + 1e-14);
+  }
+
+  /* Noise floor: 35th percentile in a sliding window of about ±winHz, computed on a coarse grid and interpolated. */
+  function noiseFloor(db, df, winHz) {
+    const n = db.length, half = Math.max(8, Math.round((winHz || 60) / df)), step = Math.max(1, Math.round(half / 6));
+    const gridK = [], gridV = [];
+    const buf = [];
+    for (let k = 0; k < n; k += step) {
+      const a = Math.max(0, k - half), b = Math.min(n - 1, k + half);
+      buf.length = 0;
+      for (let i = a; i <= b; i++) buf.push(db[i]);
+      buf.sort((p, q) => p - q);
+      gridK.push(k); gridV.push(buf[Math.floor(buf.length * 0.35)]);
+    }
+    if (gridK[gridK.length - 1] !== n - 1) { gridK.push(n - 1); gridV.push(gridV[gridV.length - 1]); }
+    const fl = new Float32Array(n);
+    for (let g = 0; g < gridK.length - 1; g++) {
+      const k0 = gridK[g], k1 = gridK[g + 1], v0 = gridV[g], v1 = gridV[g + 1];
+      for (let k = k0; k <= k1; k++) fl[k] = v0 + (v1 - v0) * (k - k0) / Math.max(1, k1 - k0);
+    }
+    return fl;
+  }
+
+  /* Local maxima above the floor, refined by parabolic interpolation on the dB curve. */
+  function findPeaks(db, floor, df, fmin, fmax, minProm) {
+    const out = [], n = db.length, R = 3;
+    const k0 = Math.max(R, Math.ceil(fmin / df)), k1 = Math.min(n - 1 - R, Math.floor(fmax / df));
+    for (let k = k0; k <= k1; k++) {
+      const v = db[k];
+      if (v - floor[k] < minProm) continue;
+      let isMax = true;
+      for (let j = 1; j <= R; j++) { if (db[k - j] > v || db[k + j] >= v) { isMax = false; break; } }
+      if (!isMax) continue;
+      const a = db[k - 1], b = v, c = db[k + 1], den = a - 2 * b + c;
+      const d = den !== 0 ? Math.max(-0.5, Math.min(0.5, 0.5 * (a - c) / den)) : 0;
+      out.push({ f: (k + d) * df, level: b - 0.25 * (a - c) * d, prom: v - floor[k], bin: k });
+    }
+    out.sort((p, q) => q.level - p.level);
+    return out;
+  }
+
+  /* Label a peak frequency as tooth-pass harmonic, spindle (runout) harmonic, mains hum or none. */
+  /* Tolerance for "is this a harmonic": wide while the speed is only known from the input,
+     tight once the tooth-pass frequency has been fitted to the measured comb (ctx.fitted). */
+  function harmTol(f, ctx) {
+    return ctx.fitted ? Math.max(2 * ctx.df, 0.0005 * f) : Math.max(2.5 * ctx.df, 0.003 * f);
+  }
+  function classify(f, ctx) {
+    const tol = harmTol(f, ctx);
+    const fr = ctx.rpm / 60, ft = fr * ctx.z;
+    if (ft > 0 && ft > 4 * tol) {
+      const k = Math.round(f / ft);
+      if (k >= 1 && Math.abs(f - k * ft) <= tol) return { type: "tooth", k };
+    }
+    if (fr > 0 && fr > 10 * tol) {
+      const k = Math.round(f / fr);
+      if (k >= 1 && Math.abs(f - k * fr) <= tol) return { type: "spindle", k };
+    }
+    if (ctx.mains > 0) {
+      const k = Math.round(f / ctx.mains);
+      if (k >= 1 && k <= 8 && Math.abs(f - k * ctx.mains) <= 1.5 + ctx.df) return { type: "mains", k };
+    }
+    return { type: "none", k: 0 };
+  }
+  /* Can the current speed be told apart from chatter at frequency f at all? */
+  function harmonicResolution(f, ctx) {
+    const tol = harmTol(f, ctx), fr = ctx.rpm / 60, ft = fr * ctx.z;
+    if (!(ft > 4 * tol)) return false;
+    /* Spindle harmonics too dense to test one by one: f could be a runout harmonic */
+    if (!(fr > 10 * tol) && fr > 0) {
+      const k = Math.round(f / fr);
+      if (k >= 1 && Math.abs(f - k * fr) <= tol) return false;
+    }
+    return true;
+  }
+  /* Refine a tooth-pass frequency by least squares on the peaks that sit on its comb (tight tolerance).
+     Only harmonics 1..6: a chatter peak with its tooth-pass sidebands also forms a short comb with
+     spacing ft, and at high orders it would pull the fit onto itself. */
+  function refineComb(peaks, f0, df) {
+    for (let it = 0; it < 3; it++) {
+      let sfm = 0, smm = 0, cnt = 0;
+      for (const q of peaks.slice(0, 20)) {
+        const m = Math.round(q.f / f0);
+        if (m >= 1 && m <= 6 && Math.abs(q.f - m * f0) <= Math.max(1.5 * df, 0.001 * q.f)) { sfm += q.f * m; smm += m * m; cnt++; }
+      }
+      if (cnt < 3) return null;
+      f0 = sfm / smm;
+    }
+    return f0;
+  }
+
+  /* Find the base frequency f0 (within ±20 % of the nominal tooth-pass frequency) whose multiples
+     explain the most of the 12 strongest peaks. Returns {f0, count} refined by least squares, or null. */
+  function estimateToothFreq(peaks, ftNom, df) {
+    if (!(ftNom > 0)) return null;
+    const top = peaks.slice(0, 12);
+    let best = null;
+    for (const p of top) {
+      for (let k = 1; k <= 6; k++) {
+        const f0 = p.f / k;
+        if (Math.abs(f0 / ftNom - 1) > 0.2) continue;
+        let count = 0, sfm = 0, smm = 0;
+        for (const q of top) {
+          const m = Math.round(q.f / f0);
+          if (m >= 1 && Math.abs(q.f - m * f0) <= Math.max(2 * df, 0.002 * q.f)) { count++; sfm += q.f * m; smm += m * m; }
+        }
+        if (count < 3) continue;
+        const fr = sfm / smm;
+        if (!best || count > best.count || (count === best.count && Math.abs(fr - ftNom) < Math.abs(best.f0 - ftNom))) best = { f0: fr, count };
+      }
+    }
+    return best;
+  }
+
+  /* Main analysis of a cutting sound. P = power spectrum, sr = sample rate, n = FFT size. */
+  function analyzeCut(P, sr, n, ctx) {
+    const df = sr / n, db = toDb(P);
+    const fmin = ctx.fmin || 40, fmax = Math.min(ctx.fmax || 12000, sr * 0.45);
+    const floor = noiseFloor(db, df, 60);
+    const peaks = findPeaks(db, floor, df, fmin, fmax, 8);
+    const c = { rpm: ctx.rpm, z: ctx.z, df, mains: ctx.mains || 0 };
+    for (const p of peaks) p.cls = classify(p.f, c);
+    /* Speed check: if a harmonic comb near the entered tooth-pass frequency explains more peaks,
+       the entered speed is off (override, typo). Use the measured comb instead. */
+    let rpmEst = NaN;
+    const est = estimateToothFreq(peaks, ctx.rpm / 60 * ctx.z, df);
+    if (est) {
+      const nominal = peaks.slice(0, 12).filter(p => p.cls.type === "tooth").length;
+      if (est.count >= Math.max(4, nominal + 2) && Math.abs(est.f0 / (ctx.rpm / 60 * ctx.z) - 1) > 0.004) {
+        rpmEst = est.f0 * 60 / ctx.z;
+        c.rpm = rpmEst;
+        for (const p of peaks) p.cls = classify(p.f, c);
+      }
+      /* Pin the comb to the measured harmonics so the harmonic test can use a tight tolerance:
+         chatter a few Hz beside a tooth harmonic is then not hidden as "tooth". Only small
+         corrections (< 0.5 %) are applied silently; larger ones are the rpmEst case above. */
+      const fit = refineComb(peaks, est.f0, df);
+      const ftNow = c.rpm / 60 * ctx.z;
+      if (fit && Math.abs(fit / ftNow - 1) < 0.005) {
+        c.rpm = fit * 60 / ctx.z; c.fitted = true;
+        for (const p of peaks) p.cls = classify(p.f, c);
+      }
+    }
+    /* Low speed, many teeth: spindle (runout) harmonics are too dense for classify() (it only labels
+       them when they are 10 tolerances apart, so a chatter peak is rarely hidden). A peak on
+       k·fr with a non-tooth neighbour on (k±1)·fr or (k±2)·fr of similar level is part of a runout comb, not chatter. */
+    const fr = c.rpm / 60;
+    for (const p of peaks) {
+      if (p.cls.type !== "none" || !(fr > 0)) continue;
+      const tol = harmTol(p.f, c);
+      if (fr > 10 * tol || fr <= 2 * tol) continue;
+      const k = Math.round(p.f / fr);
+      if (k < 1 || Math.abs(p.f - k * fr) > tol) continue;
+      const nb = peaks.some(q => q !== p && q.level >= p.level - 10 && q.cls.type !== "tooth" &&
+        [-2, -1, 1, 2].some(d => k + d >= 1 && Math.abs(q.f - (k + d) * fr) <= harmTol(q.f, c)));
+      if (nb) p.cls = { type: "spindle", k };
+    }
+    const harm = peaks.filter(p => p.cls.type === "tooth" || p.cls.type === "spindle");
+    const free = peaks.filter(p => p.cls.type === "none");
+    const topHarm = harm.length ? harm[0] : null;
+    let maxLevel = -200;
+    for (let k = Math.ceil(fmin / df); k <= Math.floor(fmax / df); k++) if (db[k] > maxLevel) maxLevel = db[k];
+    const ft = c.rpm / 60 * ctx.z;
+    let cand = null;
+    /* Strongest non-harmonic peak wins; prominence breaks near-ties (within 3 dB) */
+    for (const p of free) {
+      if (!cand || p.level > cand.level + 3 || (Math.abs(p.level - cand.level) <= 3 && p.prom > cand.prom)) cand = p;
+    }
+    let verdict = "clean", confidence = 0, sidebands = 0;
+    if (cand) {
+      const rel = topHarm ? cand.level - topHarm.level : 0;
+      if (ft > 0) {
+        for (const s of [-2, -1, 1, 2]) {
+          const fs = cand.f + s * ft;
+          if (fs <= fmin || fs >= fmax) continue;
+          const tol = Math.max(3 * df, 0.004 * fs);
+          if (free.some(q => q !== cand && Math.abs(q.f - fs) <= tol)) sidebands++;
+        }
+      }
+      confidence = Math.max(0, Math.min(1, (cand.prom - 8) / 20 + (rel + 20) / 60 + 0.12 * sidebands));
+      if (cand.prom >= 15 && rel >= -10) verdict = "chatter";
+      else if (cand.prom >= 10 && rel >= -20) verdict = "possible";
+      else verdict = harm.length ? "forced" : "clean";
+    } else if (harm.length) verdict = "forced";
+    if (verdict === "chatter" || verdict === "possible") {
+      if (!harmonicResolution(cand.f, c)) confidence *= 0.6;
+    }
+    return { db, floor, df, peaks, cand: (verdict === "chatter" || verdict === "possible") ? cand : null,
+      alt: free.slice(0, 4), topHarm, verdict, confidence, sidebands, maxLevel, rpmEst, rpmUsed: c.rpm,
+      resolvable: cand ? harmonicResolution(cand.f, c) : true };
+  }
+
+  /* Best spindle speeds: tooth-pass frequency = fc/(N+1). */
+  /* Rows are listed from high to low speed. With a current speed, the window is centred on the
+     pocket nearest to it (5 faster, 2 slower), so the nearby pockets are never cut off at low rpm. */
+  function suggestSpeeds(fc, z, rpmNow, nMin, nMax, maxRows) {
+    const all = [], mx = maxRows || 8;
+    if (!(fc > 0 && z > 0)) return all;
+    for (let N = 0; N < 5000; N++) {
+      const n = 60 * fc / (z * (N + 1));
+      if (n < nMin) break;
+      if (n > nMax) continue;
+      all.push({ N, n, nRound: Math.round(n / 10) * 10, change: rpmNow > 0 ? (n / rpmNow - 1) : 0, ft: n * z / 60 });
+      if (!(rpmNow > 0) && all.length >= mx) break;
+    }
+    if (!(rpmNow > 0) || all.length <= mx) return all;
+    let near = 0;
+    for (let i = 1; i < all.length; i++) if (Math.abs(all[i].n - rpmNow) < Math.abs(all[near].n - rpmNow)) near = i;
+    const start = Math.max(0, Math.min(all.length - mx, near - (mx - 3)));
+    return all.slice(start, start + mx);
+  }
+  /* Phase between successive teeth for chatter frequency fc at speed rpm. */
+  function phaseInfo(fc, z, rpm) {
+    const ft = rpm * z / 60;
+    if (!(ft > 0)) return null;
+    const q = fc / ft, N = Math.floor(q), eps = (q - N) * 360;
+    return { ratio: q, N, eps };
+  }
+  function pickRecommendations(rows, rpmNow) {
+    if (!rows.length) return {};
+    let above = null, nearest = null;
+    for (const r of rows) {
+      if (r.n >= rpmNow && (!above || r.n < above.n)) above = r;
+      if (!nearest || Math.abs(r.n - rpmNow) < Math.abs(nearest.n - rpmNow)) nearest = r;
+    }
+    return { above, nearest, best: rows[0] };
+  }
+
+  function cuttingSpeed(D, rpm) { return Math.PI * D * rpm / 1000; }
+  function scaleFeed(F, rpmOld, rpmNew) { return rpmOld > 0 ? F * rpmNew / rpmOld : NaN; }
+
+  /* Cantilever estimate for a solid tool shank. D, L in mm. Returns k in N/µm and first bending mode in Hz. */
+  function overhang(D, L, mat) {
+    const E = mat === "steel" ? 210e9 : mat === "hss" ? 220e9 : 600e9;
+    const rho = mat === "steel" || mat === "hss" ? 7850 : 14500;
+    const d = 0.8 * D / 1000, l = L / 1000;
+    const I = Math.PI * Math.pow(d, 4) / 64, A = Math.PI * d * d / 4;
+    const k = 3 * E * I / Math.pow(l, 3) / 1e6;
+    const fn = (1.875 * 1.875 / (2 * Math.PI)) * Math.sqrt(E * I / (rho * A * Math.pow(l, 4)));
+    return { k, fn };
+  }
+
+  /* ---------- Tap test ---------- */
+  /* Find hammer hits in a recording: block peak far above the running noise. Returns sample indices. */
+  function detectTaps(x, sr, opts) {
+    const o = Object.assign({ block: 256, ratio: 10, minAbs: 0.02, refractory: 0.5 }, opts || {});
+    const hits = [];
+    let noise = 0, init = false, last = -Infinity;
+    for (let s = 0; s + o.block <= x.length; s += o.block) {
+      let pk = 0, sq = 0;
+      for (let i = s; i < s + o.block; i++) { const v = Math.abs(x[i]); if (v > pk) pk = v; sq += v * v; }
+      const rms = Math.sqrt(sq / o.block);
+      if (!init) { noise = rms; init = true; continue; }
+      if (pk > Math.max(o.minAbs, o.ratio * noise * 1.414) && (s - last) / sr > o.refractory) {
+        let j = s;
+        for (let i = s; i < s + o.block; i++) if (Math.abs(x[i]) > 0.5 * pk) { j = i; break; }
+        hits.push(j); last = s;
+      } else if (rms < 4 * noise) {
+        noise = 0.98 * noise + 0.02 * rms;
+      }
+    }
+    return hits;
+  }
+  /* Power spectrum of the ring-down after one hit: skip the click, taper the tail, zero-pad. */
+  /* The click is skipped (TAP_SKIP s). The window ends where the ring-down has sunk into the noise
+     (at least 25 ms): a stiff, well damped tool rings only a few ms, and a fixed long window
+     would bury that in noise. Normalisation is fixed, so taps of different length average fairly. */
+  const TAP_SKIP = 0.0015;
+  function tapSpectrum(x, sr, start, n) {
+    const Lmax = n / 2, skip = Math.round(TAP_SKIP * sr);
+    const seg = new Float32Array(n);
+    const t0 = start + skip;
+    const B = Math.max(16, Math.round(0.001 * sr)), nb = Math.floor(Math.min(Lmax, x.length - t0) / B);
+    let L = Lmax;
+    if (nb >= 8) {
+      const e = [];
+      for (let b = 0; b < nb; b++) { let s = 0; for (let i = 0; i < B; i++) { const v = x[t0 + b * B + i]; s += v * v; } e.push(s / B); }
+      const tail = e.slice(Math.floor(nb * 0.7)).sort((p, q) => p - q), noise = tail[Math.floor(tail.length / 2)] || 0;
+      let end = nb;
+      for (let b = 0; b < nb; b++) if (e[b] < 4 * noise) { end = b; break; }
+      L = Math.min(Lmax, Math.max(Math.round(0.025 * sr), Math.round(end * B * 1.6)));
+    }
+    const taper = Math.floor(L * 0.3);
+    for (let i = 0; i < L && t0 + i < x.length; i++) {
+      let w = 1;
+      if (i > L - taper) w = 0.5 + 0.5 * Math.cos(Math.PI * (i - (L - taper)) / taper);
+      seg[i] = x[t0 + i] * w;
+    }
+    const re = new Float64Array(n), im = new Float64Array(n);
+    for (let i = 0; i < n; i++) re[i] = seg[i];
+    fft(re, im);
+    const P = new Float64Array(n / 2 + 1);
+    for (let k = 0; k <= n / 2; k++) P[k] = (re[k] * re[k] + im[k] * im[k]) / (Lmax * Lmax);
+    return P;
+  }
+  function analyzeTap(P, sr, n, fmin) {
+    const df = sr / n, db = toDb(P), floor = noiseFloor(db, df, 2000);
+    const peaks = findPeaks(db, floor, df, fmin || 150, sr * 0.45, 10);
+    /* Half-power bandwidth of the strongest mode gives a rough damping ratio */
+    let zeta = NaN;
+    if (peaks.length) {
+      const p = peaks[0], k = p.bin, lim = p.level - 3;
+      let a = k, b = k;
+      while (a > 1 && db[a] > lim) a--;
+      while (b < db.length - 2 && db[b] > lim) b++;
+      const bw = (b - a) * df;
+      if (bw > 2 * df) zeta = bw / (2 * p.f);
+    }
+    return { db, floor, df, peaks, fn: peaks.length ? peaks[0].f : NaN, zeta };
+  }
+
+  /* Compress a dB spectrum to a fixed grid for storage (step Hz up to fmax). */
+  function compress(db, df, step, fmax) {
+    const out = [];
+    for (let f = 0; f <= fmax; f += step) {
+      const a = Math.floor(f / df), b = Math.min(db.length - 1, Math.floor((f + step) / df));
+      let m = -200;
+      for (let k = a; k <= b; k++) if (db[k] > m) m = db[k];
+      out.push(Math.round(m * 10) / 10);
+    }
+    return out;
+  }
+  function levelAt(arr, step, f, bw) {
+    const a = Math.max(0, Math.floor((f - bw) / step)), b = Math.min(arr.length - 1, Math.ceil((f + bw) / step));
+    let m = -200;
+    for (let i = a; i <= b; i++) if (arr[i] > m) m = arr[i];
+    return m;
+  }
+  function bandEnergyDb(arr, step, f0, f1) {
+    let s = 0;
+    for (let i = Math.floor(f0 / step); i <= Math.min(arr.length - 1, Math.floor(f1 / step)); i++) s += Math.pow(10, arr[i] / 10);
+    return 10 * Math.log10(s + 1e-14);
+  }
+
+  return { fft, hann, frameSpectrum, welch, toDb, rmsDb, noiseFloor, findPeaks, classify, analyzeCut,
+    suggestSpeeds, phaseInfo, pickRecommendations, cuttingSpeed, scaleFeed, overhang,
+    detectTaps, tapSpectrum, TAP_SKIP, analyzeTap, compress, levelAt, bandEnergyDb, refineComb };
+})();
+
+</script>
+<script>
+(function(){
+"use strict";
+const C=ChatterCore;
+const $=id=>document.getElementById(id);
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const NFFT=32768;
+const COL={bg:"#090b0d",grid:"#1f262d",gridTxt:"#7c8994",cyan:"#5cc8e8",amber:"#ffb627",red:"#ff5a4a",violet:"#b49cff",faint:"#808c97",green:"#4cc38a"};
+
+/* ---------- formatting ---------- */
+const nf0=new Intl.NumberFormat("en-US",{maximumFractionDigits:0});
+const fmt=(v,d)=>!isFinite(v)?"–":v.toLocaleString("en-US",{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+const sgn=(v,d)=>{const r=+v.toFixed(d);return (r>0?"+":r<0?"−":"±")+fmt(Math.abs(r),d);};
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)?v:NaN;};
+
+/* ---------- storage (best effort) ---------- */
+const store={
+  get(k,d){try{const v=localStorage.getItem("cf."+k);return v?JSON.parse(v):d;}catch(_){return d;}},
+  set(k,v){try{localStorage.setItem("cf."+k,JSON.stringify(v));return true;}catch(_){return false;}},
+  list(k){const v=this.get(k,[]);return Array.isArray(v)?v.filter(x=>x&&typeof x==="object"):[];}
+};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------- machines ---------- */
+const DEFAULT_MACHINES=[
+  {id:"dmu210",name:"DMU 210 P",nMin:20,nMax:12000},
+  {id:"dmu125",name:"DMU 125 P",nMin:20,nMax:18000},
+  {id:"g550",name:"GROB G550",nMin:20,nMax:16000},
+  {id:"other",name:"Other",nMin:20,nMax:24000}
+];
+function cleanMachine(m){
+  if(!m||typeof m!=="object"||m.id==null)return null;
+  const nMin=+m.nMin,nMax=+m.nMax,o={id:String(m.id),name:String(m.name||m.id).slice(0,60),nMin:isFinite(nMin)&&nMin>=0?nMin:20,nMax:isFinite(nMax)&&nMax>0?nMax:12000};
+  if(o.nMax<=o.nMin)o.nMax=o.nMin+100;return o;
+}
+let machines=store.list("machines").map(cleanMachine).filter(Boolean);
+if(!machines.length)machines=DEFAULT_MACHINES.map(m=>Object.assign({},m));
+const settings={mains:60,fmin:40};
+{const st=store.get("settings",{})||{};if([0,50,60].includes(+st.mains))settings.mains=+st.mains;if(isFinite(+st.fmin)&&+st.fmin>=10)settings.fmin=+st.fmin;}
+function machineById(id){return machines.find(m=>m.id===id)||machines[0];}
+function fillMachineSelects(){
+  for(const id of ["in-machine","t-machine"]){
+    const s=$(id),cur=s.value;
+    s.innerHTML=machines.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+    if(machines.some(m=>m.id===cur))s.value=cur;
+  }
+}
+function renderMachines(){
+  $("m-body").innerHTML=machines.map((m,i)=>`<tr data-i="${i}">
+    <td><input aria-label="Machine name" data-k="name" value="${esc(m.name)}"></td>
+    <td><input aria-label="Minimum rpm" data-k="nMin" type="number" inputmode="numeric" value="${esc(m.nMin)}"></td>
+    <td><input aria-label="Maximum rpm" data-k="nMax" type="number" inputmode="numeric" value="${esc(m.nMax)}"></td>
+    <td><button class="btn small danger" type="button" data-del="${i}" aria-label="Delete ${esc(m.name)}" title="Delete" ${machines.length<2?"disabled":""}>✕</button></td></tr>`).join("");
+}
+$("m-body").addEventListener("change",e=>{
+  const tr=e.target.closest("tr"),k=e.target.dataset.k;if(!tr||!k)return;
+  const m=machines[+tr.dataset.i];
+  if(k==="name")m.name=e.target.value.trim()||m.name;else{const v=parseFloat(e.target.value);if(isFinite(v)&&v>=0)m[k]=v;}
+  if(m.nMax<=m.nMin){m.nMax=m.nMin+100;const mx=tr.querySelector('[data-k="nMax"]');if(mx)mx.value=m.nMax;}
+  saveMachines();
+});
+$("m-body").addEventListener("click",e=>{
+  const b=e.target.closest("[data-del]");if(!b)return;
+  machines.splice(+b.dataset.del,1);saveMachines();renderMachines();
+});
+$("m-add").addEventListener("click",()=>{machines.push({id:uid(),name:"New machine",nMin:20,nMax:12000});saveMachines();renderMachines();});
+$("m-reset").addEventListener("click",()=>{machines=DEFAULT_MACHINES.map(m=>Object.assign({},m));saveMachines();renderMachines();});
+function saveMachines(){const ok=store.set("machines",machines);fillMachineSelects();$("m-msg").textContent=ok?"Saved.":"Saved for this session only (browser storage is blocked).";refreshResult();}
+$("set-mains").value=String(settings.mains);$("set-fmin").value=settings.fmin;
+$("set-mains").addEventListener("change",()=>{settings.mains=+$("set-mains").value;store.set("settings",settings);reanalyze();});
+$("set-fmin").addEventListener("change",()=>{const v=num("set-fmin");settings.fmin=isFinite(v)?Math.max(10,v):40;store.set("settings",settings);reanalyze();});
+
+/* ---------- inputs ---------- */
+const INPUTS=["in-machine","in-rpm","in-z","in-d","in-f","in-toolmax"];
+const savedIn=store.get("inputs",{})||{};
+fillMachineSelects();renderMachines();
+for(const id of INPUTS){if(savedIn[id]!=null&&savedIn[id]!=="")$(id).value=savedIn[id];}
+if(!machines.some(m=>m.id===$("in-machine").value))$("in-machine").value=machines[0].id;
+function rpmEff(){const i=num("in-rpm");return S.mode==="cut"&&S.result&&isFinite(S.result.rpmEst)?S.result.rpmUsed:i;}
+function inputs(){
+  const m=machineById($("in-machine").value);
+  const toolMax=num("in-toolmax");
+  return {rpm:rpmEff(),rpmIn:num("in-rpm"),z:Math.round(num("in-z")),D:num("in-d"),F:num("in-f"),machine:m,
+    nMin:m.nMin,nMax:isFinite(toolMax)&&toolMax>0?Math.min(m.nMax,toolMax):m.nMax};
+}
+for(const id of INPUTS)$(id).addEventListener("input",()=>{
+  const o={};for(const k of INPUTS)o[k]=$(k).value;store.set("inputs",o);
+  reanalyze();
+});
+
+/* ---------- state ---------- */
+const S={mode:"cut",range:5000,running:false,frozen:null,live:null,slow:null,sr:48000,
+  manualF:NaN,result:null,tap:{sum:null,count:0,sr:48000,result:null},capture:null,lastAnalyze:0};
+
+/* ---------- audio engine ---------- */
+const A={ctx:null,stream:null,src:null,node:null,sink:null,ring:new Float32Array(1<<18),abs:0,lastFrame:0,wake:null,
+  push(chunk){const r=this.ring,L=r.length;for(let i=0;i<chunk.length;i++)r[(this.abs+i)&(L-1)]=chunk[i];this.abs+=chunk.length;},
+  read(start,len){const out=new Float32Array(len),r=this.ring,L=r.length;for(let i=0;i<len;i++)out[i]=r[(start+i)&(L-1)];return out;}
+};
+const WORKLET=`class Grab extends AudioWorkletProcessor{constructor(){super();this.b=new Float32Array(2048);this.n=0;}
+process(inp){const c=inp[0]&&inp[0][0];if(c){for(let i=0;i<c.length;i++){this.b[this.n++]=c[i];if(this.n===this.b.length){this.port.postMessage(this.b.slice(0));this.n=0;}}}return true;}}
+registerProcessor("cf-grab",Grab);`;
+
+let starting=false,loopGen=0;
+async function startMic(){
+  if(starting||S.running)return;
+  $("mic-error").hidden=true;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){micError("This browser gives no microphone access here. Open the app over https in Chrome or Safari, or use Load recording.");return;}
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){micError("This browser has no Web Audio. Use a current Chrome or Safari.");return;}
+  starting=true;$("btn-mic").disabled=true;$("btn-mic-t").textContent="Starting…";
+  /* iOS Safari: create and resume the context inside the tap, before any await */
+  try{A.ctx=new AC();const r=A.ctx.resume&&A.ctx.resume();if(r&&r.catch)r.catch(()=>{});}catch(_){A.ctx=null;}
+  try{
+    A.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}});
+  }catch(err){
+    starting=false;$("btn-mic").disabled=false;stopMic();
+    let framed=false;try{framed=window.top!==window;}catch(_){framed=true;}
+    micError(err&&err.name==="NotAllowedError"&&framed?"Live microphone is not allowed inside this embedded preview. Open the hosted app in your phone browser, or record with the voice memo app and use Load recording.":err&&err.name==="NotAllowedError"?"Microphone access was blocked. Allow it in the browser's site settings, or record with the voice memo app and use Load recording.":"No microphone available here ("+(err&&err.name||"error")+"). Use Load recording instead.");
+    return;
+  }
+  try{
+    if(!A.ctx)A.ctx=new AC();
+    if(A.ctx.state!=="running")await A.ctx.resume();
+    S.sr=A.ctx.sampleRate;
+    A.src=A.ctx.createMediaStreamSource(A.stream);
+    A.sink=A.ctx.createGain();A.sink.gain.value=0;A.sink.connect(A.ctx.destination);
+    let ok=false;
+    if(A.ctx.audioWorklet&&window.Blob){
+      try{
+        const url=URL.createObjectURL(new Blob([WORKLET],{type:"text/javascript"}));
+        await A.ctx.audioWorklet.addModule(url);URL.revokeObjectURL(url);
+        A.node=new AudioWorkletNode(A.ctx,"cf-grab",{numberOfInputs:1,numberOfOutputs:1,channelCount:1});
+        A.node.port.onmessage=e=>A.push(e.data);ok=true;
+      }catch(_){ok=false;}
+    }
+    if(!ok){
+      A.node=A.ctx.createScriptProcessor(4096,1,1);
+      A.node.onaudioprocess=e=>A.push(e.inputBuffer.getChannelData(0));
+    }
+    A.src.connect(A.node);A.node.connect(A.sink);
+  }catch(err){starting=false;$("btn-mic").disabled=false;stopMic();micError("Audio could not start: "+(err&&err.message||err));return;}
+  starting=false;$("btn-mic").disabled=false;
+  for(const t of A.stream.getAudioTracks())t.addEventListener("ended",()=>{if(S.running){stopMic();micError("The microphone was taken by another app or disconnected. Press Start microphone again.");}});
+  A.abs=0;A.lastFrame=0;S.running=true;S.frozen=null;S.live=null;S.slow=null;S.manualF=NaN;
+  tapReset(false);
+  requestWake();
+  uiRunning();const gen=++loopGen;requestAnimationFrame(()=>loop(gen));
+}
+function requestWake(){
+  if(!navigator.wakeLock||A.wake||document.visibilityState!=="visible")return;
+  navigator.wakeLock.request("screen").then(w=>{
+    if(!S.running){w.release().catch(()=>{});return;}
+    A.wake=w;w.addEventListener("release",()=>{if(A.wake===w)A.wake=null;});
+  }).catch(()=>{});
+}
+function stopMic(){
+  S.running=false;S.capture=null;
+  try{A.stream&&A.stream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{A.node&&A.node.disconnect();A.src&&A.src.disconnect();}catch(_){}
+  try{const p=A.ctx&&A.ctx.close&&A.ctx.close();if(p&&p.catch)p.catch(()=>{});}catch(_){}
+  try{const p=A.wake&&A.wake.release();if(p&&p.catch)p.catch(()=>{});}catch(_){}
+  A.ctx=A.stream=A.src=A.node=A.sink=A.wake=null;
+  uiRunning();
+}
+function micError(msg){const e=$("mic-error");e.textContent=msg;e.hidden=false;}
+document.addEventListener("visibilitychange",async()=>{
+  if(document.visibilityState==="visible"&&S.running){
+    try{if(A.ctx&&A.ctx.state!=="running")await A.ctx.resume();}catch(_){}
+    requestWake();
+  }
+});
+
+/* ---------- live processing ---------- */
+function loop(gen){
+  if(!S.running||gen!==loopGen)return;
+  const sr=S.sr,hop=Math.round(sr*0.1);
+  if(A.abs>=NFFT&&A.abs-A.lastFrame>=hop){
+    A.lastFrame=A.abs;
+    const x=A.read(A.abs-NFFT,NFFT);
+    const lvl=C.rmsDb(x.subarray(NFFT-4096));
+    showLevel(lvl);
+    if(S.mode==="cut"){
+      const P=C.frameSpectrum(x,NFFT);
+      S.live=blend(S.live,P,0.45);S.slow=blend(S.slow,P,0.12);
+      if(S.capture){
+        const c=S.capture;
+        if(!c.sum)c.sum=new Float64Array(P.length);
+        for(let k=0;k<P.length;k++)c.sum[k]+=P[k];
+        c.n++;
+        const left=Math.max(0,c.until-performance.now());
+        $("st-text").textContent="Capturing… "+(left/1000).toFixed(1)+" s";
+        if(left<=0){
+          for(let k=0;k<c.sum.length;k++)c.sum[k]/=c.n;
+          S.frozen={P:c.sum,sr,src:"Capture, "+c.n+" frames, "+new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})};
+          S.capture=null;S.manualF=NaN;analyzeNow();uiRunning();
+        }
+      }
+      if(!S.frozen&&performance.now()-S.lastAnalyze>400){S.lastAnalyze=performance.now();analyzeNow();}
+    }else{
+      tapScan();
+    }
+    drawSpec();
+  }
+  requestAnimationFrame(()=>loop(gen));
+}
+function blend(old,P,a){if(!old||old.length!==P.length)return Float64Array.from(P);for(let k=0;k<P.length;k++)old[k]=old[k]*(1-a)+P[k]*a;return old;}
+function showLevel(lvl){
+  const pct=Math.max(0,Math.min(100,(lvl+70)/60*100));
+  $("st-meter").style.width=pct.toFixed(0)+"%";
+  $("st-level").textContent=isFinite(lvl)?fmt(lvl,0)+" dBFS":"";
+}
+
+/* ---------- tap test (live) ---------- */
+const T={noise:0,init:false,lastHit:-1e12,pending:[],scanned:0};
+function tapReset(clearResult){
+  T.noise=0;T.init=false;T.lastHit=-1e12;T.pending=[];T.scanned=A.abs;
+  if(clearResult!==false){S.tap={sum:null,count:0,sr:S.sr,result:null};S.manualF=NaN;refreshResult();drawSpec();}
+}
+function tapScan(){
+  const sr=S.sr,B=256;
+  if(T.scanned<A.abs-A.ring.length/2)T.scanned=A.abs-A.ring.length/2;
+  while(T.scanned+B<=A.abs){
+    const blk=A.read(T.scanned,B);let pk=0,sq=0;
+    for(let i=0;i<B;i++){const v=Math.abs(blk[i]);if(v>pk)pk=v;sq+=v*v;}
+    const rms=Math.sqrt(sq/B);
+    if(!T.init){T.noise=rms;T.init=true;}
+    else if(pk>Math.max(0.02,10*T.noise*1.414)&&(T.scanned-T.lastHit)/sr>0.5){
+      let j=T.scanned;for(let i=0;i<B;i++)if(Math.abs(blk[i])>0.5*pk){j=T.scanned+i;break;}
+      T.pending.push(j);T.lastHit=T.scanned;
+    }else if(rms<4*T.noise)T.noise=0.98*T.noise+0.02*rms;
+    T.scanned+=B;
+  }
+  const need=Math.round(C.TAP_SKIP*sr)+NFFT/2+64;
+  while(T.pending.length&&A.abs-T.pending[0]>=need){
+    const j=T.pending.shift();
+    const seg=A.read(j,need);
+    addTap(C.tapSpectrum(seg,sr,0,NFFT),sr);
+  }
+  $("st-text").textContent=T.pending.length?"Hit detected…":"Listening for taps · "+S.tap.count+" so far";
+}
+function addTap(P,sr){
+  const t=S.tap;
+  if(!t.sum||t.sum.length!==P.length||t.sr!==sr){t.sum=new Float64Array(P.length);t.count=0;t.sr=sr;}
+  for(let k=0;k<P.length;k++)t.sum[k]+=P[k];
+  t.count++;
+  const avg=new Float64Array(P.length);for(let k=0;k<P.length;k++)avg[k]=t.sum[k]/t.count;
+  t.result=C.analyzeTap(avg,sr,NFFT,Math.max(150,settings.fmin));
+  t.result.P=avg;
+  S.manualF=NaN;refreshResult();
+}
+
+/* ---------- analysis ---------- */
+function currentP(){
+  if(S.mode==="tap")return S.tap.result?{P:S.tap.result.P,sr:S.tap.sr}:null;
+  if(S.frozen)return {P:S.frozen.P,sr:S.frozen.sr};
+  if(S.slow)return {P:S.slow,sr:S.sr};
+  return null;
+}
+function analyzeNow(){
+  const cp=currentP();
+  if(!cp||S.mode!=="cut"){refreshResult();return;}
+  const i=inputs();
+  if(!(i.rpmIn>0&&i.z>0)){S.result=null;refreshResult();return;}
+  S.result=C.analyzeCut(cp.P,cp.sr,NFFT,{rpm:i.rpmIn,z:i.z,mains:settings.mains,fmin:settings.fmin,fmax:Math.min(20000,cp.sr*0.45)});
+  refreshResult();
+}
+function reanalyze(){
+  if(S.mode==="cut")analyzeNow();
+  else if(S.tap.result){const avg=S.tap.result.P;S.tap.result=C.analyzeTap(avg,S.tap.sr,NFFT,Math.max(150,settings.fmin));S.tap.result.P=avg;refreshResult();}
+  else refreshResult();
+  drawSpec();
+}
+
+/* Frequency to use for the speed table, plus what it is */
+function activeFreq(){
+  if(isFinite(S.manualF))return {f:S.manualF,kind:"manual"};
+  if(S.mode==="tap"){const r=S.tap.result;return r&&isFinite(r.fn)?{f:r.fn,kind:"tap"}:null;}
+  const r=S.result;return r&&r.cand?{f:r.cand.f,kind:r.verdict}:null;
+}
+
+const VERDICT={chatter:["Chatter","Strong peak that is not a tooth-pass or spindle harmonic. Cross-check once with the spindle running in air at the same speed: a peak that is there too (drive, pump or bearing whine) is not chatter."],
+  possible:["Possible chatter","A non-harmonic peak stands out, but not by much. Capture again while it chatters, and once with the spindle running in air: a peak that is there too is not chatter."],
+  forced:["No chatter found","The strongest peaks are tooth-pass or spindle harmonics. That is forced vibration from the cut itself. If you clearly hear chatter anyway, it may sit within a few Hz of a harmonic: change the speed by 3–5 % and capture again."],
+  clean:["No clear peaks","Nothing stands out above the noise. Move the phone closer or capture while the tool is in the cut."]};
+
+function refreshResult(){
+  const i=inputs(),act=activeFreq(),kv=[],chips=[];
+  let pill="",pillCls="",text="",src="";
+  $("btn-auto").hidden=!isFinite(S.manualF);
+  if(S.mode==="tap"){
+    const r=S.tap.result;
+    src=S.tap.count?S.tap.count+" tap"+(S.tap.count>1?"s":"")+" averaged":"waiting for taps";
+    if(r&&isFinite(r.fn)){
+      pill="Tool natural frequency";pillCls="clean";
+      text="Strongest ring-down mode. Use it to pick a starting speed before cutting. During real chatter fc is usually a few percent above fn.";
+      kv.push(["Damping ζ (estimate)",isFinite(r.zeta)?fmt(r.zeta*100,1)+" %":"–"]);
+      kv.push(["Taps",String(S.tap.count)]);
+      for(const p of r.peaks.slice(1,5))chips.push(p);
+    }else{pill=S.tap.count?"No clear mode":"no data";text=S.tap.count?"Tap harder with a small steel tool on the cutting edge, phone 10–20 cm away.":"Start the microphone, then tap the tool tip a few times. Each hit is detected automatically.";}
+  }else{
+    const r=S.result;
+    src=S.frozen?S.frozen.src:(S.running?"live average":"waiting for sound");
+    if(r){
+      const v=VERDICT[r.verdict];pill=v[0];pillCls=r.verdict;text=v[1];
+      const ft=i.rpm*i.z/60;
+      kv.push(["Tooth-pass f",fmt(ft,1)+" Hz"]);
+      kv.push(["Spindle f",fmt(i.rpm/60,1)+" Hz"]);
+      if(r.cand){
+        const ph=C.phaseInfo(r.cand.f,i.z,i.rpm);
+        kv.push(["fc / tooth-pass",fmt(ph.ratio,2)]);
+        kv.push(["Phase ε",fmt(ph.eps,0)+"°"]);
+        kv.push(["Above floor",fmt(r.cand.prom,0)+" dB"]);
+        kv.push(["Sidebands",r.sidebands?r.sidebands+" found":"none"]);
+        if(!r.resolvable)text+=" At this low speed harmonics lie very close together, so treat the pick with care.";
+      }
+      if(isFinite(r.rpmEst))text+=" Note: the tooth-pass peaks fit "+nf0.format(Math.round(r.rpmEst))+" rpm, not the "+nf0.format(i.rpmIn)+" rpm you entered (override or typo?). The analysis uses "+nf0.format(Math.round(r.rpmEst))+" rpm.";
+      for(const p of r.alt)if(!r.cand||p!==r.cand)chips.push(p);
+      if(r.topHarm&&chips.length<6)chips.push(r.topHarm);
+    }else{pill="no data";text=!(i.rpmIn>0&&i.z>0)?"Enter spindle speed n and teeth z above, the analysis needs both.":S.running?"Listening…":"Start the microphone or load a recording.";}
+  }
+  if(isFinite(S.manualF)){pill="Manual pick";pillCls="manual";text="You picked this peak. Use automatic pick to go back.";}
+  $("res-src").textContent=src;
+  const pe=$("res-pill");pe.textContent=pill||"no data";pe.className="pill "+pillCls;
+  $("res-f").innerHTML=act?fmt(act.f,act.f<100?1:0)+" <small>Hz</small>":(S.mode==="cut"&&S.result&&!S.result.cand?"OK <small>stable</small>":"– <small>Hz</small>");
+  const conf=S.mode==="cut"&&S.result&&S.result.cand&&!isFinite(S.manualF)?S.result.confidence:(act?1:0);
+  $("res-conf").style.width=(conf*100).toFixed(0)+"%";
+  $("res-text").textContent=text;
+  $("res-kv").innerHTML=kv.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("");
+  $("res-chips").innerHTML=chips.length?chips.map(p=>`<button type="button" class="chip" data-f="${p.f}">${fmt(p.f,p.f<100?1:0)} Hz<span class="t">${p.cls&&p.cls.type!=="none"?labelCls(p.cls):fmt(p.prom,0)+" dB"}</span></button>`).join(""):'<span class="small dim">none</span>';
+  const can=S.mode==="cut"?!!(S.frozen||S.slow):!!S.tap.result;
+  $("btn-snap").disabled=!can;$("btn-totool").disabled=!act;
+  renderSpeeds(act,i);
+  renderFixBand(act);
+}
+function labelCls(c){return c.type==="tooth"?c.k+"× tooth":c.type==="spindle"?c.k+"× spindle":c.type==="mains"?"mains":"";}
+$("res-chips").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;S.manualF=+b.dataset.f;refreshResult();drawSpec();});
+$("btn-auto").addEventListener("click",()=>{S.manualF=NaN;refreshResult();drawSpec();});
+
+function renderSpeeds(act,i){
+  const body=$("sp-body"),adv=$("sp-advice");
+  $("sp-range").textContent=i.machine?i.machine.name+": "+nf0.format(i.nMin)+"–"+nf0.format(i.nMax)+" rpm":"";
+  if(!act){body.innerHTML='<tr><td colspan="5" class="empty">No chatter frequency yet.</td></tr>';adv.hidden=true;return;}
+  if(!(i.z>0)){body.innerHTML='<tr><td colspan="5" class="empty">Enter the number of teeth z.</td></tr>';adv.hidden=true;return;}
+  const hasN=i.rpm>0;
+  const rows=C.suggestSpeeds(act.f,i.z,i.rpm,i.nMin,i.nMax,8);
+  if(!rows.length){body.innerHTML='<tr><td colspan="5" class="empty">No pocket inside the machine speed range.</td></tr>';adv.hidden=false;adv.className="note warn";adv.textContent="Every pocket for this frequency lies outside "+nf0.format(i.nMin)+"–"+nf0.format(i.nMax)+" rpm. Change the system instead: see the Fix guide.";return;}
+  const rec=C.pickRecommendations(rows,i.rpm);
+  const first=rec.above||rec.nearest;
+  body.innerHTML=rows.map(r=>{
+    const tags=[];
+    if(r===first)tags.push('<span class="tag">try first</span>');
+    if(r===rec.nearest&&r!==first)tags.push('<span class="tag alt">nearest</span>');
+    if(r===rec.best&&r!==first&&r!==rec.nearest)tags.push('<span class="tag alt">largest pocket</span>');
+    const F=isFinite(i.F)&&i.F>0?fmt(C.scaleFeed(i.F,i.rpm,r.nRound),0):"–";
+    return `<tr class="${r===first?"rec":""}"><td>${r.N}${tags.join("")}</td><td>${nf0.format(r.nRound)}</td><td>${hasN?sgn(r.change*100,1)+" %":"–"}</td><td>${isFinite(i.D)?fmt(C.cuttingSpeed(i.D,r.nRound),0):"–"}</td><td>${F}</td></tr>`;
+  }).join("");
+  const msgs=[];
+  if(act.kind==="tap")msgs.push("From a tap test: start at the suggested speed, then go up in steps of 2–3 % while listening.");
+  if(first){
+    msgs.push(`Try ${nf0.format(first.nRound)} rpm first${hasN?` (${sgn(first.change*100,1)} %)`:""}. Keep fz the same, so F changes by the same percentage. Re-measure: if it still chatters, use the new fc.`);
+    if(hasN&&first.change>0.15){
+      const nr=rec.nearest&&rec.nearest!==first?` The nearest pocket is ${nf0.format(rec.nearest.nRound)} rpm (${sgn(rec.nearest.change*100,1)} %).`:"";
+      msgs.push(`That is a large jump in cutting speed: check vc against the tool maker's limit for this steel and hardness before you use it.${nr}`);
+    }
+    if(first.N>=8)msgs.push("Pocket N is high, so pockets are narrow and close together. Speed tuning gives little here; work on ae, overhang or holder.");
+  }
+  if(act.f<100)msgs.push("Below 100 Hz: likely structure or workpiece. Speed tuning rarely helps. Check fixture and support; ACC may help.");
+  adv.hidden=false;adv.className="note";adv.textContent=msgs.join(" ");
+}
+
+/* ---------- spectrum drawing ---------- */
+function fitCanvas(cv){
+  const r=cv.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=Math.max(1,Math.round(r.width*dpr)),h=Math.max(1,Math.round(r.height*dpr));
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}
+  const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,W:r.width,H:r.height};
+}
+function niceTicks(max,w){let step=250;for(const s of [250,500,1000,2000,5000]){step=s;if(w/(max/s)>=46)break;}const t=[];for(let f=0;f<=max+1;f+=step)t.push(f);return t;}
+function fLabel(f){return f>=1000?(f/1000)+"k":String(f);}
+function plotSpectrum(ctx,box,P,sr,fmax,y0,y1,color,width,alpha){
+  const df=sr/NFFT,kmax=Math.min(P.length-1,Math.floor(fmax/df));
+  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.globalAlpha=alpha==null?1:alpha;ctx.beginPath();
+  const cols=Math.max(1,Math.floor(box.w));let started=false;
+  for(let c=0;c<=cols;c++){
+    const ka=Math.floor(c/cols*kmax),kb=Math.max(ka,Math.floor((c+1)/cols*kmax));
+    let m=0;for(let k=ka;k<=kb&&k<=kmax;k++)if(P[k]>m)m=P[k];
+    const d=10*Math.log10(m+1e-14),y=box.y+box.h-(Math.max(y0,Math.min(y1,d))-y0)/(y1-y0)*box.h;
+    const x=box.x+c;
+    started?ctx.lineTo(x,y):(ctx.moveTo(x,y),started=true);
+  }
+  ctx.stroke();ctx.globalAlpha=1;
+}
+function axes(ctx,box,fmax,y0,y1){
+  ctx.font='11px "JetBrains Mono", monospace';ctx.lineWidth=1;
+  ctx.fillStyle=COL.gridTxt;ctx.strokeStyle=COL.grid;
+  ctx.textAlign="center";ctx.textBaseline="top";
+  for(const f of niceTicks(fmax,box.w)){const x=box.x+f/fmax*box.w;ctx.beginPath();ctx.moveTo(Math.round(x)+.5,box.y);ctx.lineTo(Math.round(x)+.5,box.y+box.h);ctx.stroke();ctx.fillText(fLabel(f),Math.min(box.x+box.w-10,Math.max(box.x+8,x)),box.y+box.h+4);}
+  ctx.textAlign="right";ctx.textBaseline="middle";
+  for(let d=Math.ceil(y0/10)*10;d<=y1;d+=10){const y=box.y+box.h-(d-y0)/(y1-y0)*box.h;ctx.beginPath();ctx.moveTo(box.x,Math.round(y)+.5);ctx.lineTo(box.x+box.w,Math.round(y)+.5);ctx.stroke();if((d-Math.ceil(y0/10)*10)%20===0)ctx.fillText(String(d),box.x-4,y);}
+  ctx.textAlign="right";ctx.textBaseline="bottom";ctx.fillText("Hz",box.x+box.w,box.y+box.h-2);
+  ctx.textAlign="left";ctx.textBaseline="top";ctx.fillText("dB",box.x+4,box.y+2);
+}
+function dbRange(P,sr,fmax){
+  const df=sr/NFFT,k1=Math.min(P.length-1,Math.floor(fmax/df));let mx=-200;
+  for(let k=Math.max(1,Math.floor(20/df));k<=k1;k++){const d=10*Math.log10(P[k]+1e-14);if(d>mx)mx=d;}
+  const top=Math.ceil((mx+6)/10)*10;return [top-80,top];
+}
+let specBox=null;
+const specFmax=sr=>Math.min(S.range,sr*0.48);
+function drawSpec(){
+  const cv=$("spec");if(cv.closest("[hidden]"))return;
+  const {ctx,W,H}=fitCanvas(cv);
+  ctx.fillStyle=COL.bg;ctx.fillRect(0,0,W,H);
+  const box={x:34,y:10,w:W-44,h:H-32};specBox=box;
+  const cp=currentP(),fmax=specFmax(cp?cp.sr:S.sr);
+  const live=S.mode==="cut"&&!S.frozen?S.live:null;
+  const main=cp?cp.P:live;
+  if(!main){axes(ctx,box,fmax,-100,-20);ctx.fillStyle=COL.faint;ctx.font='14px "Barlow", sans-serif';ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(S.mode==="tap"?"Start the microphone and tap the tool":"Start the microphone or load a recording",box.x+box.w/2,box.y+box.h/2);return;}
+  const sr=cp?cp.sr:S.sr,[y0,y1]=dbRange(main,sr,fmax);
+  axes(ctx,box,fmax,y0,y1);
+  const i=inputs(),ft=i.rpm*i.z/60;
+  if(S.mode==="cut"&&ft>0){
+    ctx.strokeStyle=COL.amber;ctx.globalAlpha=.55;ctx.setLineDash([4,4]);ctx.lineWidth=1;
+    for(let k=1;k*ft<=fmax&&k<=60;k++){const x=box.x+k*ft/fmax*box.w;ctx.beginPath();ctx.moveTo(x,box.y);ctx.lineTo(x,box.y+box.h);ctx.stroke();}
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+  }
+  ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.w,box.h);ctx.clip();
+  if(live&&cp&&live!==cp.P)plotSpectrum(ctx,box,live,sr,fmax,y0,y1,COL.cyan,1,.35);
+  plotSpectrum(ctx,box,main,sr,fmax,y0,y1,COL.cyan,1.6,1);
+  ctx.restore();
+  const act=activeFreq();
+  if(act&&act.f<=fmax){
+    const x=box.x+act.f/fmax*box.w,col=act.kind==="manual"?COL.violet:act.kind==="tap"?COL.green:COL.red;
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,box.y);ctx.lineTo(x,box.y+box.h);ctx.stroke();
+    const lab=fmt(act.f,0)+" Hz";ctx.font='600 13px "JetBrains Mono", monospace';
+    const tw=ctx.measureText(lab).width+10,lx=Math.min(box.x+box.w-tw,Math.max(box.x,x+6));
+    ctx.fillStyle=col;ctx.fillRect(lx,box.y+4,tw,20);ctx.fillStyle="#0b0d0f";ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillText(lab,lx+5,box.y+14);
+  }
+}
+$("spec").addEventListener("click",e=>{
+  const cp=currentP();if(!cp||!specBox)return;
+  const r=$("spec").getBoundingClientRect(),x=e.clientX-r.left;
+  const fmax=specFmax(cp.sr),f=(x-specBox.x)/specBox.w*fmax;
+  if(f<=0||f>fmax)return;
+  const df=cp.sr/NFFT,span=Math.max(6,Math.round(Math.max(fmax/specBox.w*6,f*0.01)/df));
+  let best=Math.round(f/df),bv=-1;
+  for(let k=Math.max(1,best-span);k<=Math.min(cp.P.length-2,best+span);k++)if(cp.P[k]>bv){bv=cp.P[k];best=k;}
+  const a=Math.log(cp.P[best-1]+1e-20),b=Math.log(cp.P[best]+1e-20),c=Math.log(cp.P[best+1]+1e-20),den=a-2*b+c;
+  const d=den!==0?Math.max(-.5,Math.min(.5,.5*(a-c)/den)):0;
+  S.manualF=(best+d)*df;refreshResult();drawSpec();
+});
+$("range-seg").addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;S.range=+b.dataset.r;for(const x of $("range-seg").children)x.setAttribute("aria-pressed",String(x===b));drawSpec();});
+
+/* ---------- buttons ---------- */
+function uiRunning(){
+  const b=$("btn-mic");b.classList.toggle("rec",S.running);b.classList.toggle("primary",!S.running);
+  $("btn-mic-t").textContent=S.running?"Stop microphone":"Start microphone";
+  $("btn-capture").disabled=!S.running||S.mode!=="cut"||!!S.capture;
+  $("btn-capture").hidden=S.mode!=="cut";
+  $("btn-live").hidden=!(S.frozen&&S.running&&S.mode==="cut");
+  $("btn-taps-reset").hidden=S.mode!=="tap";
+  if(!S.running){$("st-text").textContent=S.frozen?"Microphone off. Showing "+S.frozen.src+".":"Microphone off.";$("st-meter").style.width="0";$("st-level").textContent="";}
+  else if(!S.capture)$("st-text").textContent=S.mode==="tap"?"Listening for taps · "+S.tap.count+" so far":(S.frozen?"Frozen capture shown · microphone still on":"Listening (live average)");
+}
+$("btn-mic").addEventListener("click",()=>{S.running?stopMic():startMic();});
+$("btn-capture").addEventListener("click",()=>{if(!S.running||S.capture)return;S.frozen=null;S.capture={until:performance.now()+3000,sum:null,n:0};uiRunning();});
+$("btn-live").addEventListener("click",()=>{S.frozen=null;S.manualF=NaN;uiRunning();analyzeNow();drawSpec();});
+$("btn-taps-reset").addEventListener("click",()=>tapReset(true));
+function setMode(m){
+  S.mode=m;$("mode-cut").setAttribute("aria-pressed",String(m==="cut"));$("mode-tap").setAttribute("aria-pressed",String(m==="tap"));
+  $("mode-help").innerHTML=m==="cut"?"Hold the phone 20–50 cm from the cut, microphone toward the spindle, while the tool is chattering. Then press <b>Capture 3 s</b>.":"Spindle stopped and locked. Hold the phone 10–20 cm from the tool tip and tap the cutting edge sideways with a small steel tool, about once a second. 5–10 taps are enough.";
+  S.manualF=NaN;S.capture=null;
+  if(m==="tap")tapReset(false);
+  uiRunning();reanalyze();
+}
+$("mode-cut").addEventListener("click",()=>setMode("cut"));
+$("mode-tap").addEventListener("click",()=>setMode("tap"));
+
+/* ---------- recordings ---------- */
+$("in-file").addEventListener("change",async e=>{
+  const file=e.target.files&&e.target.files[0];e.target.value="";
+  if(!file)return;
+  $("mic-error").hidden=true;$("st-text").textContent="Decoding "+file.name+"…";
+  try{
+    const buf=await file.arrayBuffer();
+    const AC=window.AudioContext||window.webkitAudioContext;
+    const ac=new AC();
+    const audio=await new Promise((res,rej)=>{const p=ac.decodeAudioData(buf,res,rej);if(p&&p.then)p.then(res,rej);});
+    try{ac.close();}catch(_){}
+    const x=audio.getChannelData(0),sr=audio.sampleRate;
+    if(S.running)stopMic();
+    S.manualF=NaN;
+    if(S.mode==="cut"){
+      const P=C.welch(x,NFFT);
+      S.frozen={P,sr,src:file.name+" ("+fmt(x.length/sr,1)+" s)"};S.sr=sr;
+      analyzeNow();
+    }else{
+      const hits=C.detectTaps(x,sr);
+      S.tap={sum:null,count:0,sr,result:null};
+      for(const h of hits)if(h+NFFT/2<x.length)addTap(C.tapSpectrum(x,sr,h,NFFT),sr);
+      if(!hits.length){refreshResult();micError("No taps found in this recording. Tap harder and keep 1 s between hits.");}
+    }
+    uiRunning();
+    $("st-text").textContent="Loaded "+file.name+(S.mode==="tap"?" · "+S.tap.count+" taps":"");
+    drawSpec();
+  }catch(err){micError("This file could not be decoded. Try a WAV or M4A voice memo.");$("st-text").textContent="";}
+});
+
+/* ---------- snapshots / compare ---------- */
+let snaps=store.list("snaps").filter(s=>Array.isArray(s.arr));
+const STEP=4,SNAP_MAX=12000;
+$("btn-snap").addEventListener("click",()=>{
+  const cp=currentP();if(!cp)return;
+  const i=inputs(),act=activeFreq(),db=C.toDb(cp.P);
+  const s={id:uid(),t:Date.now(),mode:S.mode,rpm:i.rpm,z:i.z,machine:i.machine.name,fc:act?act.f:null,verdict:S.mode==="cut"&&S.result?S.result.verdict:"tap",
+    arr:C.compress(db,cp.sr/NFFT,STEP,Math.min(SNAP_MAX,cp.sr*0.45))};
+  snaps.unshift(s);snaps=snaps.slice(0,12);pickNewest=true;
+  const ok=store.set("snaps",snaps);
+  $("snap-msg").textContent=ok?"Snapshot saved. Open Compare to see it next to another one.":"Snapshot kept for this session only.";
+  renderSnaps();
+});
+function snapLabel(s){return new Date(s.t).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})+(s.rpm>0?" · "+nf0.format(s.rpm)+" rpm":"")+(s.fc?" · "+fmt(s.fc,0)+" Hz":"");}
+let pickNewest=false;
+function renderSnaps(){
+  const a=$("cmp-a"),b=$("cmp-b");let va=a.value,vb=b.value;
+  if(pickNewest){va=snaps[1]?snaps[1].id:"";vb=snaps[0]?snaps[0].id:"";pickNewest=false;}
+  const opts=snaps.map(s=>`<option value="${esc(s.id)}">${esc(snapLabel(s))}</option>`).join("");
+  a.innerHTML=opts||'<option value="">no snapshots</option>';b.innerHTML=opts||'<option value="">no snapshots</option>';
+  if(snaps.some(s=>s.id===va))a.value=va;else if(snaps[1])a.value=snaps[1].id;
+  if(snaps.some(s=>s.id===vb))b.value=vb;else if(snaps[0])b.value=snaps[0].id;
+  $("snap-list").innerHTML=snaps.length?snaps.map(s=>`<div class="tool"><h3>${esc(snapLabel(s))}</h3>
+    <div class="meta"><span>${esc(s.machine)}</span><span>z <b>${esc(s.z)}</b></span><span>${s.mode==="tap"?"tap test":"cut: "+esc(VERDICT[s.verdict]?VERDICT[s.verdict][0]:s.verdict)}</span></div>
+    <div class="btns"><button class="btn small danger" type="button" data-sdel="${esc(s.id)}">Delete</button></div></div>`).join(""):'<p class="empty">No snapshots yet. On Measure, capture a cut and press Save snapshot.</p>';
+  drawCompare();
+}
+$("snap-list").addEventListener("click",e=>{const b=e.target.closest("[data-sdel]");if(!b)return;snaps=snaps.filter(s=>s.id!==b.dataset.sdel);store.set("snaps",snaps);renderSnaps();});
+$("cmp-a").addEventListener("change",drawCompare);$("cmp-b").addEventListener("change",drawCompare);
+function drawCompare(){
+  const cv=$("cmp");if(cv.closest("[hidden]"))return;
+  const {ctx,W,H}=fitCanvas(cv);ctx.fillStyle=COL.bg;ctx.fillRect(0,0,W,H);
+  const A1=snaps.find(s=>s.id===$("cmp-a").value),B1=snaps.find(s=>s.id===$("cmp-b").value);
+  const box={x:34,y:10,w:W-44,h:H-32};
+  const fmax=Math.min(S.range>SNAP_MAX?SNAP_MAX:S.range,((A1||B1)?Math.max((A1||B1).arr.length,1)*STEP:5000));
+  let mx=-200;for(const s of [A1,B1])if(s)for(let i=0;i*STEP<=fmax&&i<s.arr.length;i++)if(s.arr[i]>mx)mx=s.arr[i];
+  const y1=mx>-200?Math.ceil((mx+6)/10)*10:-20,y0=y1-80;
+  axes(ctx,box,fmax,y0,y1);
+  const line=(s,col,w)=>{ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();let st=false;
+    for(let i=0;i<s.arr.length&&i*STEP<=fmax;i++){const x=box.x+i*STEP/fmax*box.w,y=box.y+box.h-(Math.max(y0,Math.min(y1,s.arr[i]))-y0)/(y1-y0)*box.h;st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true);}ctx.stroke();};
+  ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.w,box.h);ctx.clip();
+  if(A1)line(A1,COL.faint,1.4);if(B1)line(B1,COL.cyan,1.6);
+  if(A1&&A1.fc&&A1.fc<=fmax){const x=box.x+A1.fc/fmax*box.w;ctx.strokeStyle=COL.red;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(x,box.y);ctx.lineTo(x,box.y+box.h);ctx.stroke();ctx.setLineDash([]);}
+  ctx.restore();
+  const kv=[],v=$("cmp-verdict");
+  if(A1&&B1&&A1!==B1){
+    const f0=Math.max(40,settings.fmin),f1=Math.min(A1.arr.length,B1.arr.length)*STEP-STEP;
+    const eA=C.bandEnergyDb(A1.arr,STEP,f0,f1),eB=C.bandEnergyDb(B1.arr,STEP,f0,f1);
+    kv.push(["Overall level change",sgn(eB-eA,1)+" dB"]);
+    if(A1.fc){const la=C.levelAt(A1.arr,STEP,A1.fc,Math.max(8,A1.fc*0.01)),lb=C.levelAt(B1.arr,STEP,A1.fc,Math.max(8,A1.fc*0.01));
+      kv.push(["At "+fmt(A1.fc,0)+" Hz",sgn(lb-la,1)+" dB"]);
+      v.hidden=false;v.className="note "+(lb-la<=-6?"ok":lb-la>=-2?"warn":"");
+      v.textContent=lb-la<=-6?"The chatter peak dropped by "+fmt(la-lb,0)+" dB. The change worked.":lb-la>=-2?"The chatter peak is about as loud as before. Try the next pocket or change the setup.":"The chatter peak is "+fmt(la-lb,0)+" dB lower. Better, but not gone.";
+    }else v.hidden=true;
+    kv.push(["Speed A → B",(A1.rpm>0?nf0.format(A1.rpm):"–")+" → "+(B1.rpm>0?nf0.format(B1.rpm):"–")+" rpm"]);
+  }else v.hidden=true;
+  $("cmp-kv").innerHTML=kv.map(([k,x])=>`<div><dt>${esc(k)}</dt><dd class="hot">${esc(x)}</dd></div>`).join("");
+}
+
+/* ---------- tool list ---------- */
+const TF={name:"t-name",holder:"t-holder",machine:"t-machine",D:"t-d",z:"t-z",L:"t-l",fc:"t-fc",fn:"t-fn",bad:"t-bad",good:"t-good",ap:"t-ap",notes:"t-notes"};
+const NUMK=["D","z","L","fc","fn","bad","good"];
+let editId=null,delId=null;
+function cleanTool(t){
+  if(!t||typeof t!=="object"||!t.name)return null;
+  const o={id:t.id!=null?String(t.id):uid(),date:isFinite(+t.date)&&+t.date>0?+t.date:Date.now()};
+  for(const k in TF){const v=t[k];o[k]=NUMK.includes(k)?(v==null||v===""||!isFinite(+v)?null:+v):(v==null?"":String(v));}
+  return o;
+}
+let tools=store.list("tools").map(cleanTool).filter(Boolean);
+function formData(){const o={};for(const k in TF){const v=$(TF[k]).value.trim();o[k]=NUMK.includes(k)?(v===""?null:parseFloat(v)):v;}return o;}
+function setForm(o){for(const k in TF){const v=o[k];$(TF[k]).value=v==null?"":v;}}
+$("tool-form").addEventListener("submit",e=>{
+  e.preventDefault();const d=formData();if(!d.name){$("t-name").focus();return;}
+  if(editId){const t=tools.find(x=>x.id===editId);if(t)Object.assign(t,d,{date:Date.now()});}
+  else tools.unshift(Object.assign({id:uid(),date:Date.now()},d));
+  const ok=store.set("tools",tools);
+  $("t-msg").textContent=ok?"Saved "+d.name+".":"Saved for this session only (browser storage is blocked).";
+  editId=null;setForm({machine:$("t-machine").value});$("tool-form-h").textContent="Add tool";$("t-cancel").hidden=true;renderTools();
+});
+$("t-cancel").addEventListener("click",()=>{editId=null;setForm({});$("tool-form-h").textContent="Add tool";$("t-cancel").hidden=true;});
+$("t-search").addEventListener("input",renderTools);
+function machineName(id){const m=machines.find(x=>x.id===id);return m?m.name:(id||"");}
+function renderTools(){
+  const q=$("t-search").value.trim().toLowerCase();
+  const list=tools.filter(t=>!q||[t.name,t.holder,machineName(t.machine),t.notes,t.ap].join(" ").toLowerCase().includes(q));
+  $("tool-count").textContent=tools.length?tools.length+" saved":"";
+  $("tool-list").innerHTML=list.length?list.map(t=>`<div class="tool">
+    <h3><span>${esc(t.name)}</span><span class="small dim">${new Date(t.date).toLocaleDateString()}</span></h3>
+    <div class="meta">${[["",machineName(t.machine)],["Holder",t.holder],["Ø",t.D],["z",t.z],["L",t.L!=null?t.L+" mm":null],["fc",t.fc!=null?fmt(t.fc,0)+" Hz":null],["fn",t.fn!=null?fmt(t.fn,0)+" Hz":null],["Chatters",t.bad!=null?nf0.format(t.bad)+" rpm":null],["Stable",t.good!=null?nf0.format(t.good)+" rpm":null],["ap/ae",t.ap]].filter(x=>x[1]!=null&&x[1]!=="").map(([k,v])=>`<span>${esc(k)} <b>${esc(v)}</b></span>`).join("")}</div>
+    ${t.notes?`<p>${esc(t.notes)}</p>`:""}
+    <div class="btns">
+      <button class="btn small" type="button" data-use="${esc(t.id)}">Use on Measure</button>
+      <button class="btn small" type="button" data-edit="${esc(t.id)}">Edit</button>
+      ${delId===t.id?`<span class="confirm">Delete this tool? <button class="btn small danger" type="button" data-delok="${esc(t.id)}">Delete</button><button class="btn small" type="button" data-delno="1">Keep</button></span>`:`<button class="btn small danger" type="button" data-del="${esc(t.id)}">Delete</button>`}
+    </div></div>`).join(""):`<p class="empty">${tools.length?"No match.":"No tools saved yet. Measure a cut and press Save to tool list, or fill in the form."}</p>`;
+}
+$("tool-list").addEventListener("click",e=>{
+  const g=k=>e.target.closest("[data-"+k+"]");let b;
+  if((b=g("edit"))){const t=tools.find(x=>x.id===b.dataset.edit);if(!t)return;editId=t.id;setForm(t);$("tool-form-h").textContent="Edit tool";$("t-cancel").hidden=false;$("tool-form-card").scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"});}
+  else if((b=g("del"))){delId=b.dataset.del;renderTools();}
+  else if((b=g("delno"))){delId=null;renderTools();}
+  else if((b=g("delok"))){tools=tools.filter(x=>x.id!==b.dataset.delok);delId=null;store.set("tools",tools);renderTools();}
+  else if((b=g("use"))){const t=tools.find(x=>x.id===b.dataset.use);if(!t)return;
+    if(t.machine&&machines.some(m=>m.id===t.machine))$("in-machine").value=t.machine;
+    if(t.z)$("in-z").value=t.z;if(t.D)$("in-d").value=t.D;if(t.bad||t.good)$("in-rpm").value=t.bad||t.good;
+    $("in-rpm").dispatchEvent(new Event("input"));
+    if(t.fc||t.fn){S.manualF=t.fc||t.fn;refreshResult();drawSpec();}
+    location.hash="#measure";}
+});
+$("btn-totool").addEventListener("click",()=>{
+  const i=inputs(),act=activeFreq();if(!act)return;
+  editId=null;
+  setForm({machine:i.machine.id,D:isFinite(i.D)?i.D:null,z:i.z,fc:act.kind==="tap"?null:Math.round(act.f),fn:act.kind==="tap"?Math.round(act.f):null,bad:act.kind==="tap"?null:i.rpm,name:"",holder:"",L:null,good:null,ap:"",notes:""});
+  $("tool-form-h").textContent="Add tool";$("t-cancel").hidden=true;
+  location.hash="#tools";setTimeout(()=>$("t-name").focus(),50);
+});
+/* Inside the claude.ai viewer, files go through the downloads capability; on the hosted page a blob link works. */
+let dlCap=null;
+if(window.claude&&typeof window.claude.use==="function")window.claude.use("downloads").then(d=>{dlCap=d;}).catch(()=>{});
+async function download(name,text,type){
+  if(dlCap){try{await dlCap.save({filename:name,data:new Blob([text],{type})});$("t-msg").textContent="Saved "+name+".";}catch(_){$("t-msg").textContent="Download was cancelled or is not allowed here.";}return;}
+  try{const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+    $("t-msg").textContent="Download started: "+name;}catch(_){$("t-msg").textContent="Downloads are blocked here.";}
+}
+$("t-export").addEventListener("click",()=>download("chatter-tools.json",JSON.stringify({version:1,machines,tools},null,1),"application/json"));
+$("t-csv").addEventListener("click",()=>{
+  const cols=["name","holder","machine","D","z","L","fc","fn","bad","good","ap","notes"];
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  download("chatter-tools.csv",[cols.join(",")].concat(tools.map(t=>cols.map(c=>q(c==="machine"?machineName(t.machine):t[c])).join(","))).join("\n"),"text/csv");
+});
+$("t-import").addEventListener("change",async e=>{
+  const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+  try{const d=JSON.parse(await f.text());const list=Array.isArray(d)?d:d.tools;if(!Array.isArray(list))throw 0;
+    let n=0;for(const raw of list){const t=cleanTool(raw);if(!t)continue;const ex=tools.find(x=>x.id===t.id);if(ex)Object.assign(ex,t);else tools.push(t);n++;}
+    if(Array.isArray(d.machines))for(const raw of d.machines){const m=cleanMachine(raw);if(m&&!machines.some(x=>x.id===m.id))machines.push(m);}
+    store.set("tools",tools);saveMachines();renderMachines();renderTools();$("t-msg").textContent="Imported "+n+" tools.";
+  }catch(_){$("t-msg").textContent="That file is not a Chatter Finder export.";}
+});
+
+/* ---------- fix guide ---------- */
+function renderFixBand(act){
+  $("fix-fc").textContent=act?"last: "+fmt(act.f,0)+" Hz":"no frequency measured yet";
+  for(const b of $("bands").children){const lo=+b.dataset.lo,hi=+b.dataset.hi;b.classList.toggle("on",!!act&&act.f>=lo&&act.f<hi);}
+}
+function renderOverhang(){
+  const D=num("oh-d"),L1=num("oh-l1"),L2=num("oh-l2"),mat=$("oh-mat").value;
+  if(!(D>0&&L1>0&&L2>0)){$("oh-kv").innerHTML="";$("oh-body").innerHTML="";return;}
+  const a=C.overhang(D,L1,mat),b=C.overhang(D,L2,mat);
+  $("oh-kv").innerHTML=[["Stiffness new/now",fmt(b.k/a.k*100,0)+" %"],["Natural freq. new/now",fmt(b.fn/a.fn*100,0)+" %"],["fn now → new",fmt(a.fn,0)+" → "+fmt(b.fn,0)+" Hz"],["Stable depth new/now",fmt(b.k/a.k*100,0)+" %"]].map(([k,v])=>`<div><dt>${k}</dt><dd class="hot">${v}</dd></div>`).join("");
+  const rows=[];for(const r of [2,3,4,5,6,8]){const L=r*D,o=C.overhang(D,L,mat);rows.push(`<tr class="${Math.abs(L-L1)<0.5?"cur":Math.abs(L-L2)<0.5?"rec":""}"><td>${r}×D</td><td>${fmt(L,0)}</td><td>${fmt(o.k,o.k<10?2:1)}</td><td>${fmt(o.fn,0)}</td><td>${fmt(o.k/a.k*100,0)} %</td></tr>`);}
+  $("oh-body").innerHTML=rows.join("");
+}
+for(const id of ["oh-d","oh-l1","oh-l2","oh-mat"])$(id).addEventListener("input",renderOverhang);
+function renderFz(){
+  const F=num("fz-f"),n=num("fz-n"),z=num("fz-z");
+  if(!(F>0&&n>0&&z>0)){$("fz-kv").innerHTML="";return;}
+  const fz=F/(n*z);
+  const state=fz<0.02?"low: risk of rubbing and squeal (normal only for small ball mills, about Ø ≤ 3 mm)":fz<0.04?"on the low side for end mills Ø ≥ 6 mm, too low for insert cutters":"OK for solid end mills; insert cutters often need 0.1 or more";
+  $("fz-kv").innerHTML=[["fz (mm/tooth)",fmt(fz,3)],["Assessment",state],["F for fz 0.05",fmt(0.05*n*z,0)+" mm/min"]].map(([k,v])=>`<div><dt>${k}</dt><dd class="hot">${esc(v)}</dd></div>`).join("");
+}
+for(const id of ["fz-f","fz-n","fz-z"])$(id).addEventListener("input",renderFz);
+
+/* ---------- routing ---------- */
+const VIEWS=["measure","compare","tools","fix","machines"];
+let curView=null;
+function route(){
+  const h=(location.hash||"").replace("#","");const v=VIEWS.includes(h)?h:"measure";
+  if(curView&&curView!==v)window.scrollTo(0,0);curView=v;
+  for(const s of document.querySelectorAll("[data-view]"))s.hidden=s.dataset.view!==v;
+  for(const a of document.querySelectorAll("nav.tabs a")){if(a.dataset.tab===v){a.setAttribute("aria-current","page");const w=a.parentElement;if(a.offsetLeft+a.offsetWidth>w.scrollLeft+w.clientWidth||a.offsetLeft<w.scrollLeft)w.scrollLeft=a.offsetLeft-16;}else a.removeAttribute("aria-current");}
+  if(v==="measure")drawSpec();if(v==="compare")drawCompare();
+  if(v==="fix"){$("fz-n").value=$("in-rpm").value||$("fz-n").value;$("fz-z").value=$("in-z").value||$("fz-z").value;if($("in-f").value)$("fz-f").value=$("in-f").value;if($("in-d").value)$("oh-d").value=$("in-d").value;renderFz();renderOverhang();}
+}
+window.addEventListener("hashchange",route);
+let rsT=0;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(()=>{drawSpec();drawCompare();},80);});
+
+/* ---------- start ---------- */
+renderSnaps();renderTools();renderOverhang();renderFz();refreshResult();route();uiRunning();
+if(!window.isSecureContext)micError("Live microphone needs a secure (https) page. Use Load recording, or open the hosted version.");
+})();
+</script>
+
+</body>
+</html>
