@@ -201,6 +201,7 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
       <div class="field"><label for="in-d">Tool Ø D (mm)</label><input id="in-d" type="number" inputmode="decimal" min="0.1" step="0.1" value="16"></div>
       <div class="field"><label for="in-f">Feed F (mm/min)</label><input id="in-f" type="number" inputmode="numeric" min="0" step="10" placeholder="optional"></div>
       <div class="field"><label for="in-toolmax">Tool max rpm</label><input id="in-toolmax" type="number" inputmode="numeric" min="0" step="100" placeholder="optional"></div>
+      <div class="field"><label for="in-l">Overhang L (mm)</label><input id="in-l" type="number" inputmode="decimal" min="0" step="1" placeholder="optional"><span class="hint">Holder face to tool tip</span></div>
     </div>
     <div class="btns">
       <div class="seg" role="group" aria-label="Measurement mode">
@@ -909,7 +910,7 @@ $("set-mains").addEventListener("change",()=>{settings.mains=+$("set-mains").val
 $("set-fmin").addEventListener("change",()=>{const v=num("set-fmin");settings.fmin=isFinite(v)?Math.max(10,v):40;store.set("settings",settings);reanalyze();});
 
 /* ---------- inputs ---------- */
-const INPUTS=["in-machine","in-rpm","in-z","in-d","in-f","in-toolmax"];
+const INPUTS=["in-machine","in-rpm","in-z","in-d","in-f","in-toolmax","in-l"];
 const savedIn=store.get("inputs",{})||{};
 fillMachineSelects();renderMachines();
 for(const id of INPUTS){if(savedIn[id]!=null&&savedIn[id]!=="")$(id).value=savedIn[id];}
@@ -918,7 +919,7 @@ function rpmEff(){const i=num("in-rpm");return S.mode==="cut"&&S.result&&isFinit
 function inputs(){
   const m=machineById($("in-machine").value);
   const toolMax=num("in-toolmax");
-  return {rpm:rpmEff(),rpmIn:num("in-rpm"),z:Math.round(num("in-z")),D:num("in-d"),F:num("in-f"),machine:m,
+  return {rpm:rpmEff(),rpmIn:num("in-rpm"),z:Math.round(num("in-z")),D:num("in-d"),F:num("in-f"),L:num("in-l"),machine:m,
     nMin:m.nMin,nMax:isFinite(toolMax)&&toolMax>0?Math.min(m.nMax,toolMax):m.nMax};
 }
 for(const id of INPUTS)$(id).addEventListener("input",()=>{
@@ -1158,6 +1159,7 @@ function refreshResult(){
     }else{pill="no data";text=!(i.rpmIn>0&&i.z>0)?"Enter spindle speed n and teeth z above, the analysis needs both.":S.running?"Listening…":"Start the microphone or load a recording.";}
   }
   if(isFinite(S.manualF)){pill="Manual pick";pillCls="manual";text="You picked this peak. Use automatic pick to go back.";}
+  if(act&&i.L>0&&i.D>0){const e=C.overhang(i.D,i.L,"carbide").fn;kv.push(["Overhang L/D",fmt(i.L/i.D,1)]);kv.push(["Tool bending (est.)",fmt(Math.round(e/20)*10,0)+"–"+fmt(Math.round(e/10)*10,0)+" Hz"]);text+=overhangHint(act.f,i,e);}
   $("res-src").textContent=src;
   const pe=$("res-pill");pe.textContent=pill||"no data";pe.className="pill "+pillCls;
   $("res-f").innerHTML=act?fmt(act.f,act.f<100?1:0)+" <small>Hz</small>":(S.mode==="cut"&&S.result&&!S.result.cand?"OK <small>stable</small>":"– <small>Hz</small>");
@@ -1170,6 +1172,14 @@ function refreshResult(){
   $("btn-snap").disabled=!can;$("btn-totool").disabled=!act;
   renderSpeeds(act,i);
   renderFixBand(act);
+}
+/* Compare the measured frequency with the cantilever estimate of the tool's first bending mode.
+   The solid-shank estimate is an upper bound; holder and spindle compliance pull the real mode to roughly 50-100 % of it. */
+function overhangHint(f,i,e){
+  const r=f/e,r10=v=>fmt(Math.round(v/10)*10,0),rng=r10(0.5*e)+"–"+r10(e)+" Hz",dd=fmt(i.D,i.D%1?1:0);
+  if(r<0.35)return " With Ø "+dd+" mm and "+fmt(i.L,0)+" mm overhang the tool itself bends at about "+rng+". "+fmt(f,0)+" Hz is well below that, so the holder, spindle, workpiece or fixture is the likely source: a shorter tool helps little, check clamping and holder first.";
+  if(r<=1.15)return " This fits the bending mode of the tool (estimated "+rng+" for Ø "+dd+" mm, "+fmt(i.L,0)+" mm overhang). Speed tuning works here, and a shorter overhang raises the limit with the third power.";
+  return " This is above the estimated bending mode of the tool ("+rng+"): likely a higher tool mode, a thin wall or the cutting edge (check fz and wear).";
 }
 function labelCls(c){return c.type==="tooth"?c.k+"× tooth":c.type==="spindle"?c.k+"× spindle":c.type==="mains"?"mains":"";}
 $("res-chips").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;S.manualF=+b.dataset.f;refreshResult();drawSpec();});
@@ -1451,7 +1461,7 @@ $("tool-list").addEventListener("click",e=>{
   else if((b=g("delok"))){tools=tools.filter(x=>x.id!==b.dataset.delok);delId=null;store.set("tools",tools);renderTools();}
   else if((b=g("use"))){const t=tools.find(x=>x.id===b.dataset.use);if(!t)return;
     if(t.machine&&machines.some(m=>m.id===t.machine))$("in-machine").value=t.machine;
-    if(t.z)$("in-z").value=t.z;if(t.D)$("in-d").value=t.D;if(t.bad||t.good)$("in-rpm").value=t.bad||t.good;
+    if(t.z)$("in-z").value=t.z;if(t.D)$("in-d").value=t.D;if(t.L)$("in-l").value=t.L;if(t.bad||t.good)$("in-rpm").value=t.bad||t.good;
     $("in-rpm").dispatchEvent(new Event("input"));
     if(t.fc||t.fn){S.manualF=t.fc||t.fn;refreshResult();drawSpec();}
     location.hash="#measure";}
@@ -1459,7 +1469,7 @@ $("tool-list").addEventListener("click",e=>{
 $("btn-totool").addEventListener("click",()=>{
   const i=inputs(),act=activeFreq();if(!act)return;
   editId=null;
-  setForm({machine:i.machine.id,D:isFinite(i.D)?i.D:null,z:i.z,fc:act.kind==="tap"?null:Math.round(act.f),fn:act.kind==="tap"?Math.round(act.f):null,bad:act.kind==="tap"?null:i.rpm,name:"",holder:"",L:null,good:null,ap:"",notes:""});
+  setForm({machine:i.machine.id,D:isFinite(i.D)?i.D:null,z:i.z,fc:act.kind==="tap"?null:Math.round(act.f),fn:act.kind==="tap"?Math.round(act.f):null,bad:act.kind==="tap"?null:i.rpm,name:"",holder:"",L:isFinite(i.L)&&i.L>0?i.L:null,good:null,ap:"",notes:""});
   $("tool-form-h").textContent="Add tool";$("t-cancel").hidden=true;
   location.hash="#tools";setTimeout(()=>$("t-name").focus(),50);
 });
@@ -1518,7 +1528,7 @@ function route(){
   for(const s of document.querySelectorAll("[data-view]"))s.hidden=s.dataset.view!==v;
   for(const a of document.querySelectorAll("nav.tabs a")){if(a.dataset.tab===v){a.setAttribute("aria-current","page");const w=a.parentElement;if(a.offsetLeft+a.offsetWidth>w.scrollLeft+w.clientWidth||a.offsetLeft<w.scrollLeft)w.scrollLeft=a.offsetLeft-16;}else a.removeAttribute("aria-current");}
   if(v==="measure")drawSpec();if(v==="compare")drawCompare();
-  if(v==="fix"){$("fz-n").value=$("in-rpm").value||$("fz-n").value;$("fz-z").value=$("in-z").value||$("fz-z").value;if($("in-f").value)$("fz-f").value=$("in-f").value;if($("in-d").value)$("oh-d").value=$("in-d").value;renderFz();renderOverhang();}
+  if(v==="fix"){$("fz-n").value=$("in-rpm").value||$("fz-n").value;$("fz-z").value=$("in-z").value||$("fz-z").value;if($("in-f").value)$("fz-f").value=$("in-f").value;if($("in-d").value)$("oh-d").value=$("in-d").value;if($("in-l").value)$("oh-l1").value=$("in-l").value;renderFz();renderOverhang();}
 }
 window.addEventListener("hashchange",route);
 let rsT=0;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(()=>{drawSpec();drawCompare();},80);});

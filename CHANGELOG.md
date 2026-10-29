@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 – 2026-10-28
+- Setup: optional overhang L (holder face to tool tip).
+- Result: L/D and estimated tool bending range (cantilever, 50–100 % of the solid-shank value). The measured
+  frequency is compared with it: fits the tool (speed tuning + shorter overhang help), well below
+  (holder, spindle, workpiece, fixture) or above (higher mode, thin wall, edge).
+- Overhang is carried into the tool list and prefilled in the Fix guide overhang calculator.
+
 ## 1.0.0 – 2026-10-28
 - First version: live microphone FFT (32 768 points, ~1.5 Hz), 3 s capture, recording upload.
 - Chatter detection: noise floor, peak finding, tooth/spindle/mains harmonic removal, sideband check, confidence.

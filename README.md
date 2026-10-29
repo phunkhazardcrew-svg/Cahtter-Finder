@@ -4,7 +4,7 @@ Phone web app for CNC milling: listen to the cut, find the chatter frequency, ge
 
 ## Use at the machine
 1. Open https://phunkhazardcrew-svg.github.io/Cahtter-Finder/ in Chrome or Safari on the phone, allow the microphone. Menu → *Add to home screen* makes it start like an app.
-2. Measure tab: pick machine, enter actual spindle speed n (override included), teeth z, tool Ø, feed F.
+2. Measure tab: pick machine, enter actual spindle speed n (override included), teeth z, tool Ø, feed F and overhang L. The overhang does not change the speed table (the measured fc already contains it), but it tells you whether the tool itself or the holder/spindle/workpiece is chattering.
 3. **Cutting sound:** start the microphone, hold the phone 20–50 cm from the cut while it chatters, press *Capture 3 s*.
 4. Read the result: chatter frequency fc, phase ε, sidebands. The *Stable speeds* table lists n = 60·fc / (z·(N+1)) inside the machine limits; the row marked *try first* is the next pocket above the current speed.
 5. Cut again at the new speed, capture, *Save snapshot*, and compare before/after in the Compare tab.
