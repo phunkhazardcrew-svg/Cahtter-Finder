@@ -392,7 +392,7 @@ footer{padding-block:20px 40px;color:var(--faint);font-size:.8rem;border-top:1px
       <ol class="steps">
         <li><div><b>Spindle speed to a pocket</b><span>Measure fc, pick the nearest pocket from the table, cut again and re-measure. fc moves a little with the speed, so one or two iterations are normal.</span></div></li>
         <li><div><b>Feed per tooth not too small</b><span>Below roughly 0.02–0.03 mm (more for honed inserts) the edge rubs instead of cutting, which produces high squeal. At small ae the real chip is thinner than fz, so rubbing starts earlier. Keep fz when you change n: F scales with n.</span></div></li>
-        <li><div><b>Less radial engagement ae</b><span>Fewer teeth in the cut raise the stability limit. Trochoidal and HPC strategies use small ae with large ap.</span></div></li>
+        <li><div><b>Less radial engagement ae</b><span>Fewer teeth in the cut raise the stability limit. HDC (trochoidal) uses small ae with large ap, so it is far more stable than HPC slotting at full width.</span></div></li>
         <li><div><b>Shorter overhang</b><span>Use the overhang calculator. Every mm counts with the third power.</span></div></li>
         <li><div><b>Holder</b><span>Shrink fit: stiffest. Hydraulic: softer but damps better. For long reach consider a damped extension.</span></div></li>
         <li><div><b>Variable pitch or helix cutter</b><span>Unequal tooth spacing breaks the phase between teeth for a whole frequency band.</span></div></li>
@@ -924,12 +924,12 @@ const ChatterCore = (function () {
   };
   /* ae and ap as multiples of D; mu: share of the cutting force that drives the bending direction */
   const STRATEGIES = {
-    hpc:    { name: "HPC (trochoidal, small ae)", ae: 0.10, ap: 1.5,  mu: 0.50 },
-    hdc01:  { name: "HDC ae 0.1×D",               ae: 0.10, ap: 0.5,  mu: 0.55 },
-    hdc02:  { name: "HDC ae 0.2×D",               ae: 0.20, ap: 0.5,  mu: 0.60 },
-    hdc03:  { name: "HDC ae 0.3×D",               ae: 0.30, ap: 0.5,  mu: 0.60 },
-    hdc04:  { name: "HDC ae 0.4×D",               ae: 0.40, ap: 0.5,  mu: 0.60 },
-    hdc05:  { name: "HDC ae 0.5×D",               ae: 0.50, ap: 0.5,  mu: 0.60 },
+    hpc:    { name: "HPC (slotting / full width)",  ae: 1.00, ap: 0.5,  mu: 0.65 },
+    hdc01:  { name: "HDC trochoidal ae 0.1×D",      ae: 0.10, ap: 1.5,  mu: 0.50 },
+    hdc02:  { name: "HDC trochoidal ae 0.2×D",      ae: 0.20, ap: 1.5,  mu: 0.55 },
+    hdc03:  { name: "HDC trochoidal ae 0.3×D",      ae: 0.30, ap: 1.5,  mu: 0.60 },
+    hdc04:  { name: "HDC trochoidal ae 0.4×D",      ae: 0.40, ap: 1.5,  mu: 0.60 },
+    hdc05:  { name: "HDC trochoidal ae 0.5×D",      ae: 0.50, ap: 1.5,  mu: 0.60 },
     highfeed:{ name: "Highfeed (small ap, axial force)", ae: 0.70, ap: 0.06, mu: 0.25 },
     custom: { name: "Custom",                     ae: 0.30, ap: 0.5,  mu: 0.60 }
   };
@@ -1476,6 +1476,7 @@ function renderSetupCheck(i){
     else if(i.ap<=aPocket){msgs.unshift("ap "+fmt(i.ap,1)+" mm likely needs a good speed pocket. Measure the chatter frequency (or do a tap test) and use the speed table.");}
     else{cls="note warn";msgs.unshift("ap "+fmt(i.ap,1)+" mm is above the estimate even for a good pocket. Expect chatter unless the setup is stiffer or better damped than assumed. Biggest lever here: "+lever+".");}
   }else msgs.unshift("Enter ap to check the planned cut. Biggest lever for stability here: "+lever+".");
+  if(i.strat==="hpc")msgs.push("HPC slotting puts half the teeth in the cut: the most chatter-prone strategy. Where the geometry allows, HDC trochoidal with small ae lets you go much deeper.");
   if(i.strat==="highfeed")msgs.push("Highfeed pushes mostly along the tool axis, so it tolerates long stick-out much better than side milling.");
   const n=$("asm-note");n.className=cls;n.textContent=msgs.join(" ");
 }

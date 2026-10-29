@@ -459,12 +459,12 @@ const ChatterCore = (function () {
   };
   /* ae and ap as multiples of D; mu: share of the cutting force that drives the bending direction */
   const STRATEGIES = {
-    hpc:    { name: "HPC (trochoidal, small ae)", ae: 0.10, ap: 1.5,  mu: 0.50 },
-    hdc01:  { name: "HDC ae 0.1×D",               ae: 0.10, ap: 0.5,  mu: 0.55 },
-    hdc02:  { name: "HDC ae 0.2×D",               ae: 0.20, ap: 0.5,  mu: 0.60 },
-    hdc03:  { name: "HDC ae 0.3×D",               ae: 0.30, ap: 0.5,  mu: 0.60 },
-    hdc04:  { name: "HDC ae 0.4×D",               ae: 0.40, ap: 0.5,  mu: 0.60 },
-    hdc05:  { name: "HDC ae 0.5×D",               ae: 0.50, ap: 0.5,  mu: 0.60 },
+    hpc:    { name: "HPC (slotting / full width)",  ae: 1.00, ap: 0.5,  mu: 0.65 },
+    hdc01:  { name: "HDC trochoidal ae 0.1×D",      ae: 0.10, ap: 1.5,  mu: 0.50 },
+    hdc02:  { name: "HDC trochoidal ae 0.2×D",      ae: 0.20, ap: 1.5,  mu: 0.55 },
+    hdc03:  { name: "HDC trochoidal ae 0.3×D",      ae: 0.30, ap: 1.5,  mu: 0.60 },
+    hdc04:  { name: "HDC trochoidal ae 0.4×D",      ae: 0.40, ap: 1.5,  mu: 0.60 },
+    hdc05:  { name: "HDC trochoidal ae 0.5×D",      ae: 0.50, ap: 1.5,  mu: 0.60 },
     highfeed:{ name: "Highfeed (small ap, axial force)", ae: 0.70, ap: 0.06, mu: 0.25 },
     custom: { name: "Custom",                     ae: 0.30, ap: 0.5,  mu: 0.60 }
   };

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2 – 2026-10-28
+- Strategy presets corrected: HPC = slotting / full width (ae 1×D, ap 0.5×D); HDC = trochoidal with ae 0.1–0.5×D and ap 1.5×D.
+- Setup check warns that HPC slotting is the most chatter-prone strategy.
+
 ## 1.2.1 – 2026-10-28
 - Dropdowns for teeth z (1–24) and tool Ø (standard end mill and face mill sizes) in Setup, Tool list and Fix guide;
   "Other…" opens free entry.
