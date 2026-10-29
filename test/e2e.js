@@ -9,7 +9,7 @@ const srv=http.createServer((q,r)=>{const f=path.join(root,q.url==="/"?"index.ht
   const p=await b.newPage({viewport:{width:w,height:h}});
   p.on("console",m=>{if(m.type()==="error")errs.push(name+": "+m.text());});p.on("pageerror",e=>errs.push(name+" pageerror: "+e.message));
   await p.goto("http://localhost:8765/");
-  await p.fill("#in-rpm","9000");await p.fill("#in-z","4");
+  await p.fill("#in-rpm","9000");await p.selectOption("#in-z-pick","4");
   await p.click("#btn-mic");await p.waitForTimeout(3500);
   const live=await p.evaluate(()=>({pill:document.getElementById("res-pill").textContent,f:document.getElementById("res-f").textContent,st:document.getElementById("st-text").textContent}));
   console.log(name,"live",JSON.stringify(live));
