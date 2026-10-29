@@ -71,7 +71,9 @@ section.view{display:grid;gap:14px}
 .field select{font-family:var(--f-body)}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--amber);outline:none}
 .field .hint{font-size:.74rem;color:var(--faint)}
-.field.big input{font-size:1.4rem;color:var(--amber)}
+.field.big input,.field.big select{font-size:1.4rem;color:var(--amber);font-family:var(--f-mono)}
+.field select.pick{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.field .pick + input{margin-top:6px}
 .sub{font-family:var(--f-display);font-size:1rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);border-top:1px solid var(--line);padding-top:10px}
 .flexbar{display:flex;height:16px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
 .flexbar i{display:block;height:100%}
@@ -1090,6 +1092,37 @@ $("set-fmin").addEventListener("change",()=>{const v=num("set-fmin");settings.fm
 
 /* ---------- inputs ---------- */
 const INPUTS=["in-machine","in-rpm","in-z","in-d","in-f","in-toolmax","in-spindle","in-holder","in-lg","in-l","in-dh","in-mat","in-strat","in-ae","in-ap"];
+/* Picker: a dropdown in front of a number input for values with standard steps (teeth, Ø).
+   The input stays the source of truth; "Other…" shows it for free entry. */
+const PICKS={
+  z:{list:[1,2,3,4,5,6,7,8,9,10,11,12,14,16,18,20,24],unit:""},
+  d:{list:[1,1.5,2,2.5,3,4,5,6,8,10,12,14,16,18,20,25,32,40,50,52,63,66,80,100,125,160],unit:" mm"}
+};
+const pickers=[];
+function makePicker(inputId,kind){
+  const inp=$(inputId),cfg=PICKS[kind];if(!inp||!cfg)return;
+  const sel=document.createElement("select");sel.className="pick";sel.id=inputId+"-pick";
+  sel.setAttribute("aria-label",(inp.labels&&inp.labels[0]?inp.labels[0].textContent:"Value")+" (choose)");
+  sel.innerHTML='<option value="">–</option>'+cfg.list.map(v=>`<option value="${v}">${String(v).replace(".",".")}${cfg.unit}</option>`).join("")+'<option value="other">Other…</option>';
+  inp.parentNode.insertBefore(sel,inp);
+  const lab=inp.labels&&inp.labels[0];if(lab)lab.htmlFor=sel.id;
+  sel.addEventListener("change",()=>{
+    if(sel.value==="other"){inp.hidden=false;inp.focus();return;}
+    inp.value=sel.value;inp.hidden=true;inp.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  pickers.push({sel,inp,cfg});
+}
+function syncPickers(){
+  for(const p of pickers){
+    if(document.activeElement===p.inp)continue;
+    const v=parseFloat(p.inp.value);
+    if(p.inp.value===""){p.sel.value="";p.inp.hidden=true;}
+    else if(p.cfg.list.includes(v)){p.sel.value=String(v);p.inp.hidden=true;}
+    else{p.sel.value="other";p.inp.hidden=false;}
+  }
+}
+for(const id of ["in-z","t-z","fz-z"])makePicker(id,"z");
+for(const id of ["in-d","t-d","oh-d"])makePicker(id,"d");
 function fillOptions(id,obj,label){const s=$(id),cur=s.value;s.innerHTML=Object.keys(obj).map(k=>`<option value="${esc(k)}">${esc(label?obj[k].name:k)}</option>`).join("");if(obj[cur])s.value=cur;}
 for(const id of ["in-spindle","t-spindle"])fillOptions(id,C.SPINDLES,false);
 for(const id of ["in-holder","t-htype"])fillOptions(id,C.HOLDERS,true);
@@ -1376,6 +1409,7 @@ function refreshResult(){
   renderSpeeds(act,i);
   renderFixBand(act);
   renderSetupCheck(i);
+  syncPickers();
 }
 const r10=v=>fmt(Math.round(v/10)*10,0);
 function asmNow(i){return C.assembly({spindle:i.spindle,holder:i.holder,D:i.D,L:i.L,Lg:i.Lg,Dh:i.Dh});}
@@ -1698,7 +1732,7 @@ function cleanTool(t){
 }
 let tools=store.list("tools").map(cleanTool).filter(Boolean);
 function formData(){const o={};for(const k in TF){const v=$(TF[k]).value.trim();o[k]=NUMK.includes(k)?(v===""?null:parseFloat(v)):v;}return o;}
-function setForm(o){for(const k in TF){const v=o[k];$(TF[k]).value=v==null?"":v;}}
+function setForm(o){for(const k in TF){const v=o[k];$(TF[k]).value=v==null?"":v;}syncPickers();}
 $("tool-form").addEventListener("submit",e=>{
   e.preventDefault();const d=formData();if(!d.name){$("t-name").focus();return;}
   if(editId){const t=tools.find(x=>x.id===editId);if(t)Object.assign(t,d,{date:Date.now()});}
@@ -1813,6 +1847,7 @@ function route(){
   for(const a of document.querySelectorAll("nav.tabs a")){if(a.dataset.tab===v){a.setAttribute("aria-current","page");const w=a.parentElement;if(a.offsetLeft+a.offsetWidth>w.scrollLeft+w.clientWidth||a.offsetLeft<w.scrollLeft)w.scrollLeft=a.offsetLeft-16;}else a.removeAttribute("aria-current");}
   if(v==="measure")drawSpec();if(v==="compare")drawCompare();
   if(v==="fix"){$("fz-n").value=$("in-rpm").value||$("fz-n").value;$("fz-z").value=$("in-z").value||$("fz-z").value;if($("in-f").value)$("fz-f").value=$("in-f").value;if($("in-d").value)$("oh-d").value=$("in-d").value;if($("in-l").value)$("oh-l1").value=$("in-l").value;renderFz();renderOverhang();}
+  syncPickers();
 }
 window.addEventListener("hashchange",route);
 let rsT=0;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(()=>{drawSpec();drawCompare();},80);});

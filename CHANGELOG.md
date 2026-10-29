@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 – 2026-10-28
+- Dropdowns for teeth z (1–24) and tool Ø (standard end mill and face mill sizes) in Setup, Tool list and Fix guide;
+  "Other…" opens free entry.
+
 ## 1.2.0 – 2026-10-28
 - Setup: spindle interface (HSK-A100 default, per machine profile), holder type (shrink, hydraulic, power chuck,
   ER, Weldon, shell mill arbor, damped), total length and stick-out, optional holder front Ø.
